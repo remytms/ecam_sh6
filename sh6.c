@@ -26,6 +26,7 @@
 int main(int argc, char *argv[])
 {
     int i;
+    char cmd_line[256];
 
     if (argc >= 2) {
         printf("This will read the file(s) : ");
@@ -35,7 +36,12 @@ int main(int argc, char *argv[])
         }
         printf("\n");
     } else {
-        printf("This will show a prompt.\n");
+        do {
+            printf("sh6 > ");
+            scanf("%[^\n]%*c", cmd_line);
+            printf("Entry : %s\n", cmd_line);
+        } while (strcmp(cmd_line, "exit"));
+        printf("Exiting\nBye!\n");
     }
 }
 
