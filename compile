@@ -1,2 +1,2 @@
 #!/bin/bash
-gcc sh6.c -o sh6.out
+gcc sh6.c -o sh6.out -g

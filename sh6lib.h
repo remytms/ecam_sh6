@@ -19,6 +19,13 @@
 #ifndef SH6LIB_H
 #define SH6LIB_H
 
-/* Some function comes here. */
+/*
+ * Return true if the string given in args means 'exit'
+ */
+int sh6_is_exit(char str[])
+{
+    return (strcmp(str, "exit") == 0 || strcmp(str, "exit\n") == 0 ||
+            strcmp(str, "quit") == 0 || strcmp(str, "quit\n") == 0);
+}
 
 #endif
