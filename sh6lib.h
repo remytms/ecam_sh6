@@ -43,7 +43,7 @@ int sh6_exec_bash(char filename[])
 
     while (getline(&line, &len, file) > -1) {
         if (strlen(line) > 1) {
-            printf("Executing: %s", line);
+            printf("sh6 > %s", line);
             if (system(line) < 0) 
                 printf("Error when executing '%s'\n", line);
         }
