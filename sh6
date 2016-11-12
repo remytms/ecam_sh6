@@ -1,2 +1,2 @@
 #!/bin/bash
-./sh6.out
+./sh6.out "$@"

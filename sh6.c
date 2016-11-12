@@ -16,32 +16,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
 #include "sh6lib.h"
 
 int main(int argc, char *argv[])
 {
-    int i;
+    int i, err;
     char cmd_line[256];
 
     if (argc >= 2) {
-        printf("This will read the file(s) : ");
         for(i = 1; i < argc; i++) {
-            printf(argv[i]);
-            printf(" ");
+            sh6_exec_bash(argv[i]);
         }
-        printf("\n");
     } else {
         do {
             printf("sh6 > ");
-            scanf("%[^\n]%*c", cmd_line);
-            printf("Entry : %s\n", cmd_line);
-        } while (strcmp(cmd_line, "exit"));
-        printf("Exiting\nBye!\n");
+            if (fgets(cmd_line, 256, stdin) != NULL) {
+                if(system(cmd_line) < 0)
+                    printf("Error when executing '%s'\n", cmd_line);
+            }
+        } while (!sh6_is_exit(cmd_line));
     }
+    printf("Bye!\n");
 }
 
