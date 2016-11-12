@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -30,12 +31,9 @@ int main(int argc, char *argv[])
     char cmd_line[256];
 
     if (argc >= 2) {
-        printf("This will read the file(s) : ");
         for(i = 1; i < argc; i++) {
-            printf(argv[i]);
-            printf(" ");
+            sh6_exec_bash(argv[i]);
         }
-        printf("\n");
     } else {
         do {
             printf("sh6 > ");
@@ -44,7 +42,7 @@ int main(int argc, char *argv[])
                     printf("Error when executing '%s'\n", cmd_line);
             }
         } while (!sh6_is_exit(cmd_line));
-        printf("Bye!\n");
     }
+    printf("Bye!\n");
 }
 

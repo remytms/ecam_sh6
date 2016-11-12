@@ -28,4 +28,31 @@ int sh6_is_exit(char str[])
             strcmp(str, "quit") == 0 || strcmp(str, "quit\n") == 0);
 }
 
+/* 
+ * Execute bash file.
+ */
+int sh6_exec_bash(char filename[])
+{
+    FILE *file;
+    char *line = NULL;
+    size_t len = 0;
+
+    file = fopen(filename, "r");
+    if (file == NULL)
+        return 1;
+
+    while (getline(&line, &len, file) > -1) {
+        if (strlen(line) > 1) {
+            printf("Executing: %s", line);
+            if (system(line) < 0) 
+                printf("Error when executing '%s'\n", line);
+        }
+    }
+
+    fclose(file);
+    if (line)
+        free(line);
+    return 0;
+}
+
 #endif
