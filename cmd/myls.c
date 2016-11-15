@@ -67,7 +67,14 @@ int main(int argc, char *argv[])
         if (argc - optind > 1)
             printf("%s:\n", cur_arg);
 
-        myls_list_file_in_dir(cur_arg, &filenames, &filenames_len);
+        if (myls_is_reg_file(cur_arg)) {
+            filenames = calloc(1, sizeof(char*));
+            filenames[0] = calloc(strlen(cur_arg)+1, sizeof(char));
+            strcpy(filenames[0], cur_arg);
+            filenames_len = 1;
+        } else if (myls_list_file_in_dir(cur_arg, &filenames, &filenames_len)) {
+            return EXIT_FAILURE;
+        }
 
         for(j = 0; j < filenames_len; j++) {
             printf("%s\n", filenames[j]);

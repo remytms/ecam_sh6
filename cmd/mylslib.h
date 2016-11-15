@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 
 #define BUF_SIZE 1024
@@ -152,8 +154,9 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
     *filenames_len = 2;
     filenames_tmp = calloc(*filenames_len, sizeof(char*));
 
-    if ((dir = open(dir_name, O_RDONLY)) < 0) {
-        fprintf(stderr, "Failed to open %s\n", dir_name);
+    if ((dir = open(dir_name, O_RDONLY|O_DIRECTORY)) < 0) {
+        fprintf(stderr, "cannot open directory %s\n", dir_name);
+        free(filenames_tmp);
         return EXIT_FAILURE;
     } else {
         while ((nread = syscall(SYS_getdents, dir, buf, BUF_SIZE)) > 0) {
@@ -186,6 +189,16 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
     *filenames = filenames_tmp;
 
     return EXIT_SUCCESS;
+}
+
+/*
+ * Return 0 if filename is not a directory.
+ */
+int myls_is_reg_file(char *filename)
+{
+    struct stat filename_stat;
+    stat(filename, &filename_stat);
+    return S_ISREG(filename_stat.st_mode);
 }
 
 #endif
