@@ -121,8 +121,10 @@ char** myls_list_file_in_dir_v3(char dir_name[], int *filenames_len)
 
 /*
  * This create a the list of the name of the files in a directory.
- * filenames needs to be an valid memory zone already malloc. But
- * filenames will be increased as needed.
+ * At the end of the excecution of the function,
+ *     filenames will containe all the names of the files contained in
+ *     dir_name.
+ *     filenames_len will be number of files contained in dir_name.
  *
  * Args:
  *     char* dir_name: string with the name of the directory.
@@ -135,7 +137,7 @@ char** myls_list_file_in_dir_v3(char dir_name[], int *filenames_len)
  */
 int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len)
 {
-    int j, dir, nread, bpos;
+    int dir, nread, bpos;
     char buf[BUF_SIZE];
     char **filenames_tmp;
     struct linux_dirent *dir_entries;
@@ -147,7 +149,8 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
 
     filenames_tmp = *filenames;
 
-    printf("Begin In the call: %p\n", filenames_tmp);
+    *filenames_len = 2;
+    filenames_tmp = calloc(*filenames_len, sizeof(char*));
 
     if ((dir = open(dir_name, O_RDONLY)) < 0) {
         fprintf(stderr, "Failed to open %s\n", dir_name);
@@ -159,13 +162,15 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
                 dir_entries = (struct linux_dirent *) (buf + bpos);
 
                 if (filenames_real_len == *filenames_len) {
-                    *filenames_len = 2 * *filenames_len;
-                    filenames_tmp = realloc(filenames_tmp, 
+                    *filenames_len *= 2;
+                    filenames_tmp = realloc(
+                            filenames_tmp, 
                             *filenames_len * sizeof(char*));
                 }
 
                 filenames_tmp[filenames_real_len] = calloc(
-                        (strlen(dir_entries->d_name)+1), sizeof(char*));
+                        (strlen(dir_entries->d_name) + 1),
+                        sizeof(char*));
                 strcpy(filenames_tmp[filenames_real_len], dir_entries->d_name);
                 filenames_real_len++;
 
@@ -177,15 +182,8 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
 
     filenames_tmp = realloc(filenames_tmp, filenames_real_len * sizeof(char*));
     *filenames_len = filenames_real_len;
-    printf("-- List in call\n");
-
-    for(j = 0; j < *filenames_len; j++) {
-        printf("%s\n", filenames_tmp[j]);
-    }
 
     *filenames = filenames_tmp;
-
-    printf("End In the call: %p\n", filenames_tmp);
 
     return EXIT_SUCCESS;
 }

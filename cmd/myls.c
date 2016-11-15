@@ -60,29 +60,7 @@ int main(int argc, char *argv[])
         if (argc - optind > 1) 
             printf("%s:\n", argv[i]);
 
-        printf("----- Test v3\n");
-        printf("Before call: %p\n", filenames);
-        filenames = myls_list_file_in_dir_v3(argv[i], &filenames_len);
-        printf("After call: %p\n", filenames);
-
-        printf("Number of files: %d\n", filenames_len);
-
-        for(j = 0; j < filenames_len; j++) {
-            printf("%s\n", filenames[j]);
-            free(filenames[j]);
-        }
-        free(filenames);
-
-        printf("----- Test original\n");
-        filenames_len = 2;
-        filenames = calloc(filenames_len, sizeof(char*));
-        printf("Before call: %p\n", filenames);
         myls_list_file_in_dir(argv[i], &filenames, &filenames_len);
-        printf("After call: %p\n", filenames);
-
-        printf("Number of files: %d\n", filenames_len);
-
-        printf("-- List in main\n");
 
         for(j = 0; j < filenames_len; j++) {
             printf("%s\n", filenames[j]);
