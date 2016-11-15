@@ -22,12 +22,13 @@
 
 int main(int argc, char *argv[])
 {
-    int c, i, j, dir, nread, bpos;
+    int c, cur_arg_index, j, dir, nread, bpos;
     int all_flag = 0;
     int ignore_backup_flag = 0;
     char buf[BUF_SIZE];
     char **filenames;
     int filenames_len;
+    char *cur_arg;
     struct linux_dirent *dir_entries;
     struct option options[] = 
     {
@@ -56,19 +57,26 @@ int main(int argc, char *argv[])
         }
     }
 
-    for (i = optind; i < argc; i++) {
-        if (argc - optind > 1) 
-            printf("%s:\n", argv[i]);
+    cur_arg_index = optind;
+    do {
+        if (argc - optind == 0)
+            cur_arg = ".";
+        else
+            cur_arg = argv[cur_arg_index];
 
-        myls_list_file_in_dir(argv[i], &filenames, &filenames_len);
+        if (argc - optind > 1)
+            printf("%s:\n", cur_arg);
+
+        myls_list_file_in_dir(cur_arg, &filenames, &filenames_len);
 
         for(j = 0; j < filenames_len; j++) {
             printf("%s\n", filenames[j]);
             free(filenames[j]);
         }
-
         free(filenames);
-    }
+
+        cur_arg_index++;
+    } while (cur_arg_index < argc);
 
     return EXIT_SUCCESS;
 }
