@@ -57,12 +57,30 @@ struct linux_dirent {
  */
 int myls_str_alphanum_cmp(const void* a, const void* b)
 {
-    const char *a_str = *(const char**)a;
-    const char *b_str = *(const char**)b;
-    int result = strcasecmp(a_str, b_str);
-    if (result)
+    int result;
+    char *a_str = *(char**)a;
+    char *b_str = *(char**)b;
+    int a_is_hidden = a_str[0] == '.';
+    int b_is_hidden = b_str[0] == '.';
+
+    if (a_is_hidden)
+        a_str += sizeof(char);
+
+    if (b_is_hidden)
+        b_str += sizeof(char);
+
+    result = strcasecmp(a_str, b_str);
+    if (result) {
         return result;
-    return -strcmp(a_str, b_str);
+    } else {
+        result = -strcmp(a_str, b_str);
+        if (result)
+            return result;
+        if (a_is_hidden)
+            return 1;
+        if (b_is_hidden)
+            return -1;
+    }
 }
 
 /*
