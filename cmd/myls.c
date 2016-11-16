@@ -22,9 +22,12 @@
 
 int main(int argc, char *argv[])
 {
-    int c, cur_arg_index, j, dir, nread, bpos;
     int all_flag = 0;
     int ignore_backup_flag = 0;
+    int details_flag = 0;
+    int recursive_flag = 0;
+
+    int c, cur_arg_index, j, dir, nread, bpos;
     char buf[BUF_SIZE];
     char **filenames;
     int filenames_len;
@@ -34,11 +37,12 @@ int main(int argc, char *argv[])
     {
         {"all", no_argument, NULL, 'a'},
         {"ignore-backups", no_argument, NULL, 'B'},
+        {"recursive", no_argument, NULL, 'R'},
         {0, 0, 0, 0}
     };
 
     while ((c = getopt_long(argc, argv,
-                ":aB",
+                "aBlR",
                 options, NULL)) != -1) {
         switch (c) {
             case 0:
@@ -49,6 +53,12 @@ int main(int argc, char *argv[])
                 break;
             case 'B':
                 ignore_backup_flag = 1;
+                break;
+            case 'l':
+                details_flag = 1;
+                break;
+            case 'R':
+                recursive_flag = 1;
                 break;
             case '?':
                 printf("Case ?.\n");
@@ -64,9 +74,6 @@ int main(int argc, char *argv[])
         else
             cur_arg = argv[cur_arg_index];
 
-        if (argc - optind > 1)
-            printf("%s:\n", cur_arg);
-
         if (myls_is_reg_file(cur_arg)) {
             filenames = calloc(1, sizeof(char*));
             filenames[0] = calloc(strlen(cur_arg)+1, sizeof(char));
@@ -76,6 +83,12 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
+        if ((argc - optind) > 1 && myls_is_dir(cur_arg))
+            printf("%s:\n", cur_arg);
+
+        qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
+
+        printf("After sorting:\n");
         for(j = 0; j < filenames_len; j++) {
             printf("%s\n", filenames[j]);
             free(filenames[j]);

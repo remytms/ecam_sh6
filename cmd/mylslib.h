@@ -51,13 +51,18 @@ struct linux_dirent {
  *     negative value if a < b.
  *     0 if a == b.
  *     positive value if a > b.
+ * 
+ * See also:
+ *     http://stackoverflow.com/questions/3489139/how-to-qsort-an-array-of-pointers-to-char-in-c
  */
-int myls_str_alphanum_cmp(const char a[], const char b[])
+int myls_str_alphanum_cmp(const void* a, const void* b)
 {
-    int result = strcasecmp(a, b);
+    const char *a_str = *(const char**)a;
+    const char *b_str = *(const char**)b;
+    int result = strcasecmp(a_str, b_str);
     if (result)
         return result;
-    return -strcmp(a, b);
+    return -strcmp(a_str, b_str);
 }
 
 /*
@@ -192,7 +197,15 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
 }
 
 /*
- * Return 0 if filename is not a directory.
+ * Determine if filename is a regular file or not.
+ *
+ * Return value:
+ *     1 if filename is a regular file.
+ *     0 if not.
+ *
+ * See also:
+ *     http://stackoverflow.com/questions/4553012/checking-if-a-file-is-a-directory-or-just-a-file
+ *     man 2 stat
  */
 int myls_is_reg_file(char *filename)
 {
@@ -200,5 +213,20 @@ int myls_is_reg_file(char *filename)
     stat(filename, &filename_stat);
     return S_ISREG(filename_stat.st_mode);
 }
+
+/*
+ * Determine if filename is a directory or not.
+ *
+ * Return value:
+ *     1 if filename is a directory.
+ *     0 if not.
+ */
+int myls_is_dir(char *filename)
+{
+    struct stat filename_stat;
+    stat(filename, &filename_stat);
+    return S_ISDIR(filename_stat.st_mode);
+}
+
 
 #endif
