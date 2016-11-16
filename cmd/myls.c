@@ -89,7 +89,9 @@ int main(int argc, char *argv[])
         qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
 
         for(j = 0; j < filenames_len; j++) {
-            printf("%s\n", filenames[j]);
+            // Filter hidden file if needed
+            if (!(!all_flag && filenames[j][0] == '.'))
+                printf("%s\n", filenames[j]);
             free(filenames[j]);
         }
         free(filenames);
