@@ -32,6 +32,10 @@ int main(int argc, char *argv[])
     char **filenames;
     int filenames_len;
     char *cur_arg;
+    char *permission;
+    char *username;
+    char *groupname;
+    char *mtime;
     struct linux_dirent *dir_entries;
     struct option options[] = 
     {
@@ -90,8 +94,44 @@ int main(int argc, char *argv[])
 
         for(j = 0; j < filenames_len; j++) {
             // Filter hidden file if needed
-            if (!(!all_flag && filenames[j][0] == '.'))
+            if (!(!all_flag && filenames[j][0] == '.')) {
+                // Show details if needed
+                if (details_flag) {
+                    // Permission 
+                    permission = calloc(11, sizeof(char));
+                    if (myls_get_permission(filenames[j], permission, 11))
+                        strcpy(permission, "err");
+                    printf("%s\t", permission);
+                    free(permission);
+
+                    // Hard link
+                    printf("%d\t", myls_get_nlink(filenames[j]));
+
+                    // Username
+                    username = calloc(100, sizeof(char));
+                    if (myls_get_username(filenames[j], username, 100))
+                        strcpy(username, "error");
+                    printf("%s\t", username);
+                    free(username);
+
+                    // Groupname 
+                    groupname = calloc(100, sizeof(char));
+                    if (myls_get_username(filenames[j], groupname, 100))
+                        strcpy(groupname, "error");
+                    printf("%s\t", groupname);
+                    free(groupname);
+
+                    // size
+                    printf("%d\t", myls_get_size(filenames[j]));
+
+                    // Modification date
+                    mtime = calloc(20, sizeof(char));
+                    myls_get_mtime(filenames[j], mtime, 20);
+                    printf("%s\t", mtime);
+                    free(mtime);
+                }
                 printf("%s\n", filenames[j]);
+            }
             free(filenames[j]);
         }
         free(filenames);
