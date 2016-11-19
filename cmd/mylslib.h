@@ -20,6 +20,7 @@
 #define MYLSLIB_H
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
@@ -35,6 +36,8 @@
 
 /*
  * Structure reprensenting a linux directory entry
+ * See :
+ *     man 2 getdents
  */
 struct linux_dirent {
     long d_ino;
@@ -87,67 +90,6 @@ int myls_str_alphanum_cmp(const void* a, const void* b)
 }
 
 /*
- * Return the list of the files in a directory as an array of str.
- * This fill in the var filenames_len with the length of the returned array.
- *
- * Args:
- *     char* dir_name: string with the name of the directory.
- *     int* filenames_len: an empty int pointer.
- *
- * Return value:
- *     An array containing the names of the files in the given directory.
- */
-char** myls_list_file_in_dir_v3(char dir_name[], int *filenames_len)
-{
-    int j, dir, nread, bpos;
-    char buf[BUF_SIZE];
-    char **filenames;
-    struct linux_dirent *dir_entries;
-    size_t filenames_real_len = 0;
-
-    *filenames_len = 2;
-    filenames = calloc(*filenames_len, sizeof(char*));
-
-    printf("Begin In the call: %p\n", filenames);
-    
-    // Check that it doesn't point to null
-    assert(filenames_len);
-
-    if ((dir = open(dir_name, O_RDONLY)) < 0) {
-        fprintf(stderr, "Failed to open %s\n", dir_name);
-        return NULL;
-    } else {
-        while ((nread = syscall(SYS_getdents, dir, buf, BUF_SIZE)) > 0) {
-            bpos = 0;
-            while (bpos < nread) {
-                dir_entries = (struct linux_dirent *) (buf + bpos);
-
-                if (filenames_real_len == *filenames_len) {
-                    *filenames_len = 2 * *filenames_len;
-                    filenames = realloc(filenames, 
-                            *filenames_len * sizeof(char*));
-                }
-
-                filenames[filenames_real_len] = calloc(
-                        (strlen(dir_entries->d_name)+1), sizeof(char*));
-                strcpy(filenames[filenames_real_len], dir_entries->d_name);
-                filenames_real_len++;
-
-                bpos += dir_entries->d_reclen;
-            }
-        }
-    }
-    close(dir);
-
-    filenames = realloc(filenames, filenames_real_len * sizeof(char*));
-    *filenames_len = filenames_real_len;
-
-    printf("End In the call: %p\n", filenames);
-
-    return filenames;
-}
-
-/*
  * This create a the list of the name of the files in a directory.
  * At the end of the excecution of the function,
  *     filenames will containe all the names of the files contained in
@@ -163,9 +105,9 @@ char** myls_list_file_in_dir_v3(char dir_name[], int *filenames_len)
  *     EXIT_SUCCESS if no errors occured.
  *     EXIT_FAILURE if errors occured.
  */
-int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len)
+int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
 {
-    int dir, nread, bpos;
+    int nread, bpos;
     char buf[BUF_SIZE];
     char **filenames_tmp;
     struct linux_dirent *dir_entries;
@@ -180,8 +122,7 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
     *filenames_len = 2;
     filenames_tmp = calloc(*filenames_len, sizeof(char*));
 
-    if ((dir = open(dir_name, O_RDONLY|O_DIRECTORY)) < 0) {
-        fprintf(stderr, "cannot open directory %s\n", dir_name);
+    if (dir < 0) {
         free(filenames_tmp);
         return EXIT_FAILURE;
     } else {
@@ -207,7 +148,6 @@ int myls_list_file_in_dir(char dir_name[], char ***filenames, int *filenames_len
             }
         }
     }
-    close(dir);
 
     filenames_tmp = realloc(filenames_tmp, filenames_real_len * sizeof(char*));
     *filenames_len = filenames_real_len;
@@ -250,21 +190,6 @@ int myls_is_dir(char *filename)
 }
 
 /*
- * Determine if filename is a link or not.
- *
- * Return value:
- *     1 if filename is a link.
- *     0 if not.
- */
-int myls_is_link(char *filename)
-{
-    struct stat filename_stat;
-    stat(filename, &filename_stat);
-    return S_ISLNK(filename_stat.st_mode);
-}
-
-
-/*
  * Get modification time for the given filename
  * See also:
  *     http://stackoverflow.com/questions/13542345/how-to-convert-st-mtime-which-get-from-stat-function-to-string-or-char
@@ -273,47 +198,50 @@ int myls_is_link(char *filename)
  *     man 2 stat
  *     man 2 time
  */
-size_t myls_get_mtime(char *filename, char *mtime_str, size_t mtime_str_len)
+size_t myls_get_mtime(struct stat *filename_stat, 
+        char **mtime_str)
 {
-    struct stat filename_stat;
+    char str[100];
     struct tm mtime_lt;
     struct tm now_lt;
     time_t mtime_raw;
     time_t now_raw;
+    size_t res;
 
-    stat(filename, &filename_stat);
-
-    mtime_raw = filename_stat.st_mtime;
+    mtime_raw = filename_stat->st_mtime;
     now_raw = time(NULL);
 
     localtime_r(&now_raw, &now_lt);
     localtime_r(&mtime_raw, &mtime_lt);
 
     if (now_lt.tm_year == mtime_lt.tm_year && 
-        now_lt.tm_mon == mtime_lt.tm_mon)
-        return strftime(mtime_str, mtime_str_len, "%b %d %H:%M", &mtime_lt);
-    else
-        return strftime(mtime_str, mtime_str_len, "%b %d  %d", &mtime_lt);
+        now_lt.tm_mon == mtime_lt.tm_mon) {
+        if ((res = strftime(str, 100, "%b %d %H:%M", &mtime_lt)) < 0)
+            return -1;
+        *mtime_str = strdup(str);
+        return res;
+    } else {
+        if ((res = strftime(str, 100, "%b %d  %Y", &mtime_lt)) < 0)
+            return -1;
+        *mtime_str = strdup(str);
+        return res;
+    }
 }
 
 /*
  * Get the size of a file.
  */
-int myls_get_size(char *filename)
+int myls_get_size(struct stat *filename_stat)
 {
-    struct stat filename_stat;
-    stat(filename, &filename_stat);
-    return filename_stat.st_size;
+    return filename_stat->st_size;
 }
 
 /*
  * Get number of hard link of a file.
  */
-int myls_get_nlink(char *filename)
+int myls_get_nlink(struct stat *filename_stat)
 {
-    struct stat filename_stat;
-    stat(filename, &filename_stat);
-    return filename_stat.st_nlink;
+    return filename_stat->st_nlink;
 }
 
 /*
@@ -322,20 +250,15 @@ int myls_get_nlink(char *filename)
  *     man 2 stat
  *     man 3 getpwuid
  */
-int myls_get_username(char *filename, char *str, size_t str_len)
+int myls_get_username(struct stat *filename_stat, char **str)
 {
-    struct stat filename_stat;
     struct passwd *pw;
 
-    stat(filename, &filename_stat);
-    pw = getpwuid(filename_stat.st_uid);
+    pw = getpwuid(filename_stat->st_uid);
     if (pw == NULL)
         return EXIT_FAILURE;
 
-    if (strlen(pw->pw_name) > str_len)
-        return EXIT_FAILURE;
-
-    strcpy(str, pw->pw_name);
+    *str = strdup(pw->pw_name);
 
     return EXIT_SUCCESS;
 }
@@ -346,20 +269,15 @@ int myls_get_username(char *filename, char *str, size_t str_len)
  *     man 2 stat
  *     man 3 getgrgid
  */
-int myls_get_groupname(char *filename, char *str, size_t str_len)
+int myls_get_groupname(struct stat *filename_stat, char **str)
 {
-    struct stat filename_stat;
     struct group *grp;
 
-    stat(filename, &filename_stat);
-    grp = getgrgid(filename_stat.st_gid);
+    grp = getgrgid(filename_stat->st_gid);
     if (grp == NULL)
         return EXIT_FAILURE;
 
-    if (strlen(grp->gr_name) > str_len)
-        return EXIT_FAILURE;
-
-    strcpy(str, grp->gr_name);
+    *str = strdup(grp->gr_name);
 
     return EXIT_SUCCESS;
 }
@@ -371,17 +289,16 @@ int myls_get_groupname(char *filename, char *str, size_t str_len)
  *     https://www.gnu.org/software/libc/manual/html_node/Permission-Bits.html
  *     man 2 stat
  *     man 3 strcat
+ *     man 3 errno
  */
-int myls_get_permission(char *filename, char *str, size_t str_len)
+int myls_get_permission(struct stat *filename_stat, 
+        char **result_str)
 {
-    struct stat filename_stat;
     mode_t filemode;
-    stat(filename, &filename_stat);
-    filemode = filename_stat.st_mode;
-    str[0] = '\0';
+    char *str = calloc(11, sizeof(char));
 
-    if (str_len < 11)
-        return EXIT_FAILURE;
+    filemode = filename_stat->st_mode;
+    str[0] = '\0';
 
     if (S_ISREG(filemode)) strcat(str, "-");
     if (S_ISDIR(filemode)) strcat(str, "d");
@@ -412,6 +329,25 @@ int myls_get_permission(char *filename, char *str, size_t str_len)
     if (S_IXOTH & filemode) strcat(str, "x");
     else strcat(str, "-");
 
+    *result_str = str;
+
+    return EXIT_SUCCESS;
+}
+
+/*
+ * Get a file stat.
+ */
+int myls_get_file_stat(int dir, char *filename, struct stat **stat)
+{
+    struct stat *filename_stat = *stat;
+    if (dir < 0) {
+        if (lstat(filename, filename_stat))
+            return EXIT_FAILURE;
+    } else {
+        if (fstatat(dir, filename, filename_stat, AT_SYMLINK_NOFOLLOW))
+            return EXIT_FAILURE;
+    }
+    *stat = filename_stat;
     return EXIT_SUCCESS;
 }
 
