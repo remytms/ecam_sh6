@@ -18,8 +18,6 @@
 
 #include <getopt.h>
 
-char *pgr_name;
-
 #include "mylslib.h"
 
 int main(int argc, char *argv[])
@@ -29,11 +27,15 @@ int main(int argc, char *argv[])
     int details_flag = 0;
     int recursive_flag = 0;
 
-    int c, cur_arg_index, j, dir, res;
+    int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos;
     char buf[BUF_SIZE];
     char **filenames;
     int filenames_len;
+    char **dirnames;
+    int dirnames_len;
+    char *pgr_name;
     char *cur_dirname;
+    char *full_dirname;
     char *permission;
     char *username;
     char *groupname;
@@ -55,9 +57,6 @@ int main(int argc, char *argv[])
                 "aBlR",
                 options, NULL)) != -1) {
         switch (c) {
-            case 0:
-                printf("Case 0.\n");
-                break;
             case 'a':
                 all_flag = 1;
                 break;
@@ -77,27 +76,33 @@ int main(int argc, char *argv[])
         }
     }
 
-    cur_arg_index = optind;
-    do {
-        if (argc - optind == 0)
-            cur_dirname = ".";
-        else
-            cur_dirname = argv[cur_arg_index];
+    if (argc - optind == 0) {
+        dirnames_len = 1;
+        dirnames = calloc(dirnames_len, sizeof(char*));
+        dirnames[0] = strdup(".");
+    } else {
+        dirnames_len = argc - optind;
+        dirnames = calloc(dirnames_len, sizeof(char*));
+        for (cur_arg_index = optind; cur_arg_index < argc; cur_arg_index++) {
+            dirnames[cur_arg_index-optind] = strdup(argv[cur_arg_index]);
+        }
+    }
 
-        if ((dir = open(cur_dirname, O_RDONLY)) < 0) {
+    for(d_ind = 0; d_ind < dirnames_len; d_ind++) {
+        if ((dir = open(dirnames[d_ind], O_RDONLY)) < 0) {
             fprintf(stderr, 
                     "%s: cannot open %s: %s\n", 
                     pgr_name,
-                    cur_dirname,
+                    dirnames[d_ind],
                     strerror(errno));
             exit(EXIT_FAILURE);
         }
 
-        if (lstat(cur_dirname, &cur_dir_stat)) {
+        if (lstat(dirnames[d_ind], &cur_dir_stat)) {
             fprintf(stderr, 
                     "%s: cannot open %s: %s\n", 
                     pgr_name,
-                    cur_dirname,
+                    dirnames[d_ind],
                     strerror(errno));
             exit(EXIT_FAILURE);
         }
@@ -105,7 +110,7 @@ int main(int argc, char *argv[])
         if (!S_ISDIR(cur_dir_stat.st_mode)) {
             filenames_len = 1;
             filenames = calloc(filenames_len, sizeof(char*));
-            filenames[0] = strdup(cur_dirname);
+            filenames[0] = strdup(dirnames[d_ind]);
             close(dir);
             dir = -1;
         } else {
@@ -113,35 +118,49 @@ int main(int argc, char *argv[])
                 fprintf(stderr, 
                         "%s: cannot open %s: %s\n", 
                         pgr_name,
-                        cur_dirname,
+                        dirnames[d_ind],
                         strerror(errno));
                 exit(EXIT_FAILURE);
             }
         }
 
-        if (cur_arg_index != optind)
+        if (d_ind > 0)
             printf("\n");
-        if ((argc - optind) > 1 && S_ISDIR(cur_dir_stat.st_mode))
-            printf("%s:\n", cur_dirname);
+        if ((dirnames_len > 1 && S_ISDIR(cur_dir_stat.st_mode)) ||
+                recursive_flag)
+            printf("%s:\n", dirnames[d_ind]);
 
         qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
 
+        insert_pos = d_ind + 1;
         for(j = 0; j < filenames_len; j++) {
             // Filter hidden file if needed
             if (!(!all_flag && filenames[j][0] == '.')) {
+                // Get file stat
+                file_stat = malloc(sizeof(struct stat));
+                if (myls_get_file_stat(dir, filenames[j], &file_stat)) {
+                    fprintf(stderr, 
+                            "%s: cannot access to details of %s: %s\n", 
+                            pgr_name,
+                            filenames[j],
+                            strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+
+                if (recursive_flag && S_ISDIR(file_stat->st_mode) &&
+                        strcmp(filenames[j], ".") && 
+                        strcmp(filenames[j], "..")) {
+                    full_dirname = myls_path_concat(dirnames[d_ind], filenames[j]);
+                    myls_array_insert(
+                            insert_pos++,
+                            full_dirname,
+                            &dirnames,
+                            &dirnames_len);
+                    free(full_dirname);
+                }
+
                 // Show details if needed
                 if (details_flag) {
-                    // Get file stat
-                    file_stat = malloc(sizeof(struct stat));
-                    if (myls_get_file_stat(dir, filenames[j], &file_stat)) {
-                        fprintf(stderr, 
-                                "%s: cannot access to details of %s: %s\n", 
-                                pgr_name,
-                                filenames[j],
-                                strerror(errno));
-                        exit(EXIT_FAILURE);
-                    }
-
                     // Permission 
                     if (myls_get_permission(file_stat, &permission)) {
                         fprintf(stderr, 
@@ -192,8 +211,8 @@ int main(int argc, char *argv[])
                     printf("%s\t", mtime);
                     free(mtime);
 
-                    free(file_stat);
                 }
+                free(file_stat);
                 printf("%s\n", filenames[j]);
             }
             free(filenames[j]);
@@ -201,9 +220,11 @@ int main(int argc, char *argv[])
         free(filenames);
         if (dir > -1)
             close(dir);
+    }
 
-        cur_arg_index++;
-    } while (cur_arg_index < argc);
+    for(d_ind = 0; d_ind < dirnames_len; d_ind++)
+        free(dirnames[d_ind]);
+    free(dirnames);
 
     return EXIT_SUCCESS;
 }

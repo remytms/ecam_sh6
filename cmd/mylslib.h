@@ -351,4 +351,57 @@ int myls_get_file_stat(int dir, char *filename, struct stat **stat)
     return EXIT_SUCCESS;
 }
 
+/*
+ * Insert the element after the given position.
+ */
+int myls_array_insert(int pos, char *elem, char ***ar, int *ar_len)
+{
+    char **ar_old;
+    char **ar_new;
+    int i_old, i_new;
+    int ar_old_len;
+
+    // Check that it doesn't point to null
+    assert(ar);
+    assert(ar_len);
+
+    ar_old = *ar;
+    ar_old_len = *ar_len;
+
+    ar_new = calloc(ar_old_len + 1, sizeof(char*));
+
+    i_old = 0;
+    i_new = 0;
+    while (i_new < (ar_old_len + 1)) {
+        if (i_new == pos) {
+            ar_new[i_new] = strdup(elem);
+            i_new++;
+        } else {
+            ar_new[i_new] = strdup(ar_old[i_old]);
+            free(ar_old[i_old]);
+            i_new++;
+            i_old++;
+        }
+    }
+    free(ar_old);
+
+    *ar_len = ar_old_len + 1;
+    *ar = ar_new;
+}
+
+/*
+ * Concatenate 2 path.
+ */
+char* myls_path_concat(const char *a, const char *b)
+{
+    char *res = malloc(strlen(a)+strlen(b)+2 * sizeof(char));
+    res[0] = '\0';
+
+    strcat(res, a);
+    strcat(res, "/");
+    strcat(res, b);
+
+    return res;
+}
+
 #endif
