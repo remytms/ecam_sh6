@@ -32,6 +32,10 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 
+/*
+ * Buffer size for getdents
+ * See: man 2 getdents
+ */
 #define BUF_SIZE 1024
 
 /*
@@ -335,7 +339,21 @@ int myls_get_permission(struct stat *filename_stat,
 }
 
 /*
- * Get a file stat.
+ * Return a file stat structure in the buffer pointed by stat for the
+ * given file (filename) in the given directory (dir). If dir is -1, the
+ * filename is assumed to be in the current directory. If dir is a valid
+ * file descriptor, the filename is assumed to be in this directory. dir
+ * must be a file descriptor to a directory.
+ *
+ * Args:
+ *     int dir: a file descriptor for a directory
+ *     char *filename: the name of the file
+ *     struct stat **stat: a pointer to a stat structure that will be
+ *                         filled in.
+ *
+ * Return value:
+ *     On success it return EXIT_SUCCESS. If an allocation fails it
+ *     return EXIT_FAILURE.
  */
 int myls_get_file_stat(int dir, char *filename, struct stat **stat)
 {
@@ -352,7 +370,20 @@ int myls_get_file_stat(int dir, char *filename, struct stat **stat)
 }
 
 /*
- * Insert the element after the given position.
+ * Insert an element after the given position in an array. In the new
+ * array the element will be at position given in pos. The array ar is
+ * reallocated to include the new element. It needs to be freed after
+ * usage. The length of the new array is stored in ar_len.
+ *
+ * Args:
+ *     int pos: the position of elem in the new array
+ *     char *elem: the element to add to the array
+ *     char ***ar: a pointer to the array that will be modified
+ *     int *ar_len: a pointer to the current length of ar
+ *
+ * Return value:
+ *     On success it return EXIT_SUCCESS. If an allocation fails it
+ *     return EXIT_FAILURE.
  */
 int myls_array_insert(int pos, char *elem, char ***ar, int *ar_len)
 {
@@ -368,16 +399,21 @@ int myls_array_insert(int pos, char *elem, char ***ar, int *ar_len)
     ar_old = *ar;
     ar_old_len = *ar_len;
 
-    ar_new = calloc(ar_old_len + 1, sizeof(char*));
+    if ((ar_new = calloc(ar_old_len + 1, sizeof(char*))) == NULL)
+        return EXIT_FAILURE;
 
     i_old = 0;
     i_new = 0;
     while (i_new < (ar_old_len + 1)) {
         if (i_new == pos) {
             ar_new[i_new] = strdup(elem);
+            if (!ar_new[i_new])
+                return EXIT_FAILURE;
             i_new++;
         } else {
             ar_new[i_new] = strdup(ar_old[i_old]);
+            if (!ar_new[i_new])
+                return EXIT_FAILURE;
             free(ar_old[i_old]);
             i_new++;
             i_old++;
@@ -387,14 +423,28 @@ int myls_array_insert(int pos, char *elem, char ***ar, int *ar_len)
 
     *ar_len = ar_old_len + 1;
     *ar = ar_new;
+
+    return EXIT_SUCCESS;
 }
 
 /*
- * Concatenate 2 path.
+ * Concatenate 2 paths. It add the '/' between a and b. This allocate a
+ * new string containing the string: a + "/" + b. Don't forget to free
+ * it correctly after usage. a and b is not modified and not freed.
+ *
+ * Args:
+ *     char *a: a path name
+ *     char *b: a path name
+ * 
+ * Return value:
+ *     A pointer to a new string: a + "/" + b
+ *     If an errors occured NULL is returned
  */
 char* myls_path_concat(const char *a, const char *b)
 {
-    char *res = malloc(strlen(a)+strlen(b)+2 * sizeof(char));
+    char *res;
+    if ((res = malloc(strlen(a)+strlen(b)+2 * sizeof(char))) == NULL)
+        return res;
     res[0] = '\0';
 
     strcat(res, a);

@@ -18,6 +18,13 @@
 
 #include <getopt.h>
 
+/*
+ * Solve: Value too large for defined data type
+ * See:
+ * http://stackoverflow.com/questions/13893580/calling-stat-from-sys-stat-h-faills-with-value-too-large-for-defined-data-type
+ */
+//#define _FILE_OFFSET_BITS 64
+
 #include "mylslib.h"
 
 int main(int argc, char *argv[])
