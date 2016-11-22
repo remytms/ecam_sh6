@@ -1,3 +1,8 @@
 #!/bin/bash
 gcc sh6.c -o sh6 -g
 gcc cmd/myls.c -o cmd/myls -g
+gcc cmd/mypwd.c -o cmd/mypwd -g
+gcc cmd/mycat.c -o cmd/mycat -g
+gcc cmd/mywho.c -o cmd/mywho -g
+gcc cmd/myuptime.c -o cmd/myuptime -g
+gcc cmd/mycp.c -o cmd/mycp -g
