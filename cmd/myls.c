@@ -85,11 +85,17 @@ int main(int argc, char *argv[])
 
     if (argc - optind == 0) {
         dirnames_len = 1;
-        dirnames = calloc(dirnames_len, sizeof(char*));
+        if ((dirnames = calloc(dirnames_len, sizeof(char*))) == NULL) {
+            perror(pgr_name);
+            exit(EXIT_FAILURE);
+        }
         dirnames[0] = strdup(".");
     } else {
         dirnames_len = argc - optind;
-        dirnames = calloc(dirnames_len, sizeof(char*));
+        if ((dirnames = calloc(dirnames_len, sizeof(char*))) == NULL) {
+            perror(pgr_name);
+            exit(EXIT_FAILURE);
+        }
         for (cur_arg_index = optind; cur_arg_index < argc; cur_arg_index++) {
             dirnames[cur_arg_index-optind] = strdup(argv[cur_arg_index]);
         }
@@ -144,7 +150,10 @@ int main(int argc, char *argv[])
             // Filter hidden file if needed
             if (!(!all_flag && filenames[j][0] == '.')) {
                 // Get file stat
-                file_stat = malloc(sizeof(struct stat));
+                if ((file_stat = malloc(sizeof(struct stat))) == NULL) {
+                    perror(pgr_name);
+                    exit(EXIT_FAILURE);
+                }
                 if (myls_get_file_stat(dir, filenames[j], &file_stat)) {
                     fprintf(stderr, 
                             "%s: cannot access to details of %s: %s\n", 
@@ -158,11 +167,18 @@ int main(int argc, char *argv[])
                         strcmp(filenames[j], ".") && 
                         strcmp(filenames[j], "..")) {
                     full_dirname = myls_path_concat(dirnames[d_ind], filenames[j]);
-                    myls_array_insert(
+                    if (full_dirname == NULL) {
+                        perror(pgr_name);
+                        exit(EXIT_FAILURE);
+                    }
+                    if (myls_array_insert(
                             insert_pos++,
                             full_dirname,
                             &dirnames,
-                            &dirnames_len);
+                            &dirnames_len)) {
+                        perror(pgr_name);
+                        exit(EXIT_FAILURE);
+                    }
                     free(full_dirname);
                 }
 
