@@ -1,3 +1,3 @@
 #!/bin/bash
-gcc sh6.c -o sh6.out -g
-gcc cmd/myls.c -o cmd/myls.out -g
+gcc sh6.c -o sh6 -g
+gcc cmd/myls.c -o cmd/myls -g
