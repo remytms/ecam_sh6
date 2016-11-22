@@ -19,6 +19,13 @@
 #ifndef SH6LIB_H
 #define SH6LIB_H
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 /*
  * Return true if the string given in args means 'exit'
  */
@@ -29,9 +36,18 @@ int sh6_is_exit(char str[])
 }
 
 /* 
- * Execute bash file.
+ * Execute bash file. It read the file (filename) and execute each
+ * line of this file. It print an error if a line of the file cannot be
+ * executed.
+ *
+ * Args:
+ *     char *filename: the name of the bash file that will be read
+ *
+ * Return value:
+ *     EXIT_SUCCESS if no errors occured
+ *     EXIT_FAILURE if an error occured
  */
-int sh6_exec_bash(char filename[])
+int sh6_exec_bash(char *filename)
 {
     FILE *file;
     char *line = NULL;
@@ -44,15 +60,115 @@ int sh6_exec_bash(char filename[])
     while (getline(&line, &len, file) > -1) {
         if (strlen(line) > 1) {
             printf("sh6 > %s", line);
-            if (system(line) < 0) 
+            if (system(line) < 0) {
                 printf("Error when executing '%s'\n", line);
+                return EXIT_FAILURE;
+            }
         }
     }
 
     fclose(file);
     if (line)
         free(line);
-    return 0;
+    return EXIT_SUCCESS;
 }
+
+/*
+ * Return the absolute path to directory containing the custom programs.
+ *
+ * Args:
+ *     char *pgr_name: the value of argv[0]
+ *
+ * Return value:
+ *     A string containing the required path. If an error occured NULL
+ *     is return.
+ *
+ * See also:
+ *     man 3 strrchr
+ *     man 3 getcwd
+ */
+char* sh6_path_to_custom_programs(char *pgr_name)
+{
+    char *cwd;
+    char *dir_to_exec;
+    char *last_slash;
+    char *complete_path;
+
+    cwd = (char *) get_current_dir_name();
+    dir_to_exec = strdup(pgr_name);
+    last_slash = strrchr(dir_to_exec, '/');
+    *last_slash = '\0';
+
+    // The path looks like: %s/%s/cmd
+    if ((complete_path = calloc(
+                    strlen(cwd)+strlen(dir_to_exec)+6, 
+                    sizeof(char))) == NULL)
+        return NULL;
+    complete_path[0] = '\0';
+
+    strcat(complete_path, cwd);
+    strcat(complete_path, "/");
+    strcat(complete_path, dir_to_exec);
+    strcat(complete_path, "/cmd");
+
+    free(cwd);
+    free(dir_to_exec);
+
+    return complete_path;
+}
+
+/*
+ * Add path to the PATH environemen= list.
+ *
+ * Args:
+ *     char *path: a path where executable can be find
+ *
+ * Return value:
+ *     EXIT_FAILURE if an error occured
+ *     EXIT_SUCCESS if no errors occured
+ *
+ * See also:
+ *     man 3 getenv
+ *     man 3 setenv
+ */
+int sh6_modify_path(char *path)
+{
+    const char *path_old;
+    char *path_new;
+
+    path_old = getenv("PATH");
+
+    if ((path_new = calloc(
+                    strlen(path_old)+strlen(path)+2, 
+                    sizeof(char))) == NULL)
+        return EXIT_FAILURE;
+
+    strcat(path_new, path);
+    strcat(path_new, ":");
+    strcat(path_new, path_old);
+
+    setenv("PATH", path_new, 1);
+
+    free(path_new);
+
+    return EXIT_SUCCESS;
+}
+
+/*
+ * Read a line.
+ */
+/*
+char* getline(void)
+{
+    size_t len_max = 100;
+    size_t len;
+    char *line = malloc(len * sizeof(char));
+    int c;
+
+    for (len = 0; len < len_max; len++) {
+        c = fgetc(stdin);
+    }
+}
+*/
 
 #endif
