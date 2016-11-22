@@ -16,33 +16,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "sh6lib.h"
 
 int main(int argc, char *argv[])
 {
     int i, err;
-    char cmd_line[256];
+    char *path_to_pgr;
+    char *pgr_name;
+    char *cmd_line = NULL;
+    size_t cmd_line_len = 0;
+
+    pgr_name = argv[0];
+
+    if ((path_to_pgr = sh6_path_to_custom_programs(argv[0])) == NULL) {
+        perror(pgr_name);
+        exit(EXIT_FAILURE);
+    }
+
+    if (sh6_modify_path(path_to_pgr)) {
+        perror(pgr_name);
+        exit(EXIT_FAILURE);
+    }
+    free(path_to_pgr);
 
     if (argc >= 2) {
         for(i = 1; i < argc; i++) {
             sh6_exec_bash(argv[i]);
         }
     } else {
-        do {
+        while (1) {
             printf("sh6 > ");
-            if (fgets(cmd_line, 256, stdin) != NULL) {
+            if (getline(&cmd_line, &cmd_line_len, stdin) > -1) {
+                if (sh6_is_exit(cmd_line))
+                    break;
                 if(system(cmd_line) < 0)
                     printf("Error when executing '%s'\n", cmd_line);
             }
-        } while (!sh6_is_exit(cmd_line));
+        }
     }
+    free(cmd_line);
     printf("Bye!\n");
 }
 
