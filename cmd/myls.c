@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
     int recursive_flag = 0;
 
     int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos;
+    int is_hidden, is_backup;
     char buf[BUF_SIZE];
     char **filenames;
     int filenames_len;
@@ -146,8 +147,13 @@ int main(int argc, char *argv[])
 
         insert_pos = d_ind + 1;
         for(j = 0; j < filenames_len; j++) {
-            // Filter hidden file if needed
-            if (!(!all_flag && filenames[j][0] == '.')) {
+            is_hidden = filenames[j][0] == '.';
+            is_backup = filenames[j][strlen(filenames[j])-1] == '~';
+            // Filter hidden and backup file if needed
+            if ((all_flag && !ignore_backup_flag) || 
+                    (all_flag && !is_backup) ||
+                    (!is_hidden && !ignore_backup_flag) ||
+                    (!is_hidden && !is_backup)) {
                 // Get file stat
                 if ((file_stat = malloc(sizeof(struct stat))) == NULL) {
                     perror(pgr_name);
