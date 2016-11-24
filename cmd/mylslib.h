@@ -230,7 +230,6 @@ size_t myls_get_mtime(struct stat *filename_stat,
     if ((now_raw = time(NULL)) == -1)
         return -1;
 
-
     if (localtime_r(&now_raw, &now_lt) == NULL)
         return -1;
     if (localtime_r(&mtime_raw, &mtime_lt) == NULL)
