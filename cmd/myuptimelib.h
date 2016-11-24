@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MYLSLIB_H
-#define MYLSLIB_H
+#ifndef MYUPTIMELIB_H
+#define MYUPTIMELIB_H
 
 #include <stdio.h>
 #include <string.h>
