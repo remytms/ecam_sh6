@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
     int ignore_backup_flag = 0;
     int details_flag = 0;
     int recursive_flag = 0;
+    int do_not_sort = 0;
 
     int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos;
     int is_hidden, is_backup;
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
     pgr_name = argv[0];
 
     while ((c = getopt_long(argc, argv,
-                "aBlR",
+                "aBflRU",
                 options, NULL)) != -1) {
         switch (c) {
             case 'a':
@@ -71,11 +72,18 @@ int main(int argc, char *argv[])
             case 'B':
                 ignore_backup_flag = 1;
                 break;
+            case 'f':
+                all_flag = 1;
+                do_not_sort = 1;
+                break;
             case 'l':
                 details_flag = 1;
                 break;
             case 'R':
                 recursive_flag = 1;
+                break;
+            case 'U':
+                do_not_sort = 1;
                 break;
             case '?':
             default:
@@ -143,7 +151,8 @@ int main(int argc, char *argv[])
                 recursive_flag)
             printf("%s:\n", dirnames[d_ind]);
 
-        qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
+        if (!do_not_sort)
+            qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
 
         insert_pos = d_ind + 1;
         for(j = 0; j < filenames_len; j++) {
