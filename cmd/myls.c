@@ -77,7 +77,6 @@ int main(int argc, char *argv[])
                 recursive_flag = 1;
                 break;
             case '?':
-                printf("Case ?.\n");
             default:
                 abort();
         }
