@@ -26,7 +26,8 @@
 /*
  * Copy sources to destination.
  */
-int mycp_do_copy(char **sources, int sources_len, char *destname, int dest_is_dir)
+int mycp_do_copy(char **sources, int sources_len, 
+        char *destname, int dest_is_dir, int verbose_flag)
 {
     int src, destdir, dest;
     int s_ind, err;
@@ -53,6 +54,13 @@ int mycp_do_copy(char **sources, int sources_len, char *destname, int dest_is_di
         }
 
         if (dest_is_dir) {
+            if (verbose_flag) {
+                printf("'%s' -> '%s/%s'\n",
+                        sources[s_ind],
+                        destname,
+                        sources[s_ind]);
+            }
+
             dest = openat(destdir, sources[s_ind], 
                     O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
             if (dest == -1) {
@@ -63,6 +71,12 @@ int mycp_do_copy(char **sources, int sources_len, char *destname, int dest_is_di
                 return EXIT_FAILURE;
             }
         } else {
+            if (verbose_flag) {
+                printf("'%s' -> '%s'\n",
+                        sources[s_ind],
+                        destname);
+            }
+
             dest = open(destname, 
                     O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
             if (dest == -1) {

@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
     int recursive_flag = 0;
     int target_directory_flag = 0;
     int update_flag = 0;
+    int verbose_flag = 0;
 
     int c, i, j, arg_ind, src_ind;
     int nbr_args;
@@ -53,13 +54,14 @@ int main(int argc, char *argv[])
         {"target-directory", required_argument, NULL, 't'},
         {"no-target-directory", no_argument, NULL, 'T'},
         {"update", no_argument, NULL, 'u'},
+        {"verbose", no_argument, NULL, 'v'},
         {0, 0, 0, 0}
     };
 
     pgr_name = argv[0];
 
     while ((c = getopt_long(argc, argv,
-                "lnrRt:Tu",
+                "lnrRt:Tuv",
                 options, NULL)) != -1) {
         switch (c) {
             case 'l':
@@ -89,6 +91,9 @@ int main(int argc, char *argv[])
                 break;
             case 'u':
                 update_flag = 1;
+                break;
+            case 'v':
+                verbose_flag = 1;
                 break;
             default:
                 abort();
@@ -192,7 +197,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (mycp_do_copy(sources, sources_len, dest, dest_is_dir)) {
+    if (mycp_do_copy(sources, sources_len, 
+                dest, dest_is_dir, verbose_flag)) {
         fprintf(stderr, 
                 "%s: failed to copy: %s\n", 
                 pgr_name,
