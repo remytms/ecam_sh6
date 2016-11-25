@@ -27,6 +27,7 @@
 
 int main(int argc, char *argv[])
 {
+    int dereference_flag = 1;
     int link_flag = 0;
     int no_clobber_flag = 0;
     int no_target_directory_flag = 0;
@@ -50,11 +51,13 @@ int main(int argc, char *argv[])
     struct stat dest_stat;
     struct option options[] = 
     {
+        {"dereference", no_argument, NULL, 'L'},
         {"link", no_argument, NULL, 'l'},
         {"no-clobber", no_argument, NULL, 'n'},
+        {"no-dereference", no_argument, NULL, 'P'},
+        {"no-target-directory", no_argument, NULL, 'T'},
         {"recursive", no_argument, NULL, 'r'},
         {"target-directory", required_argument, NULL, 't'},
-        {"no-target-directory", no_argument, NULL, 'T'},
         {"update", no_argument, NULL, 'u'},
         {"verbose", no_argument, NULL, 'v'},
         {0, 0, 0, 0}
@@ -63,14 +66,20 @@ int main(int argc, char *argv[])
     pgr_name = argv[0];
 
     while ((c = getopt_long(argc, argv,
-                "lnrRt:Tuv",
+                "lLnPrRt:Tuv",
                 options, NULL)) != -1) {
         switch (c) {
             case 'l':
                 link_flag = 1;
                 break;
+            case 'L':
+                dereference_flag = 1;
+                break;
             case 'n':
                 no_clobber_flag = 1;
+                break;
+            case 'P':
+                dereference_flag = 0;
                 break;
             case 'r':
             case 'R':
@@ -208,7 +217,7 @@ int main(int argc, char *argv[])
 
     if (mycp_do_copy(sources, sources_len, dest, dest_is_dir, 
                 &err_msg, err_msg_len,
-                verbose_flag, update_flag)) {
+                verbose_flag, update_flag, dereference_flag)) {
         printf(err_msg);
         if (strlen(err_msg) > 0) {
             fprintf(stderr,
