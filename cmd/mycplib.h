@@ -28,7 +28,8 @@
  */
 int mycp_do_copy(char **sources, int sources_len, 
         char *destname, int dest_is_dir, char **err_msg, int err_msg_len,
-        int verbose_flag, int update_flag, int dereference_flag)
+        int verbose_flag, int update_flag, int dereference_flag,
+        int no_clobber_flag)
 {
     int src, destdir, dest;
     int s_ind, err;
@@ -113,7 +114,8 @@ int mycp_do_copy(char **sources, int sources_len,
                  * is newer than dest.
                  */
                 allow_copy = !(update_flag && 
-                        !(src_stat.st_mtime > dest_stat.st_mtime));
+                        !(src_stat.st_mtime > dest_stat.st_mtime)) &&
+                        !no_clobber_flag;
             }
 
             if (allow_copy && !S_ISLNK(src_stat.st_mode)) {
@@ -166,7 +168,8 @@ int mycp_do_copy(char **sources, int sources_len,
                  * is newer than dest.
                  */
                 allow_copy = !(update_flag && 
-                        !(src_stat.st_mtime > dest_stat.st_mtime));
+                        !(src_stat.st_mtime > dest_stat.st_mtime)) &&
+                        !no_clobber_flag;
             }
 
             if (allow_copy && !S_ISLNK(src_stat.st_mode)) {

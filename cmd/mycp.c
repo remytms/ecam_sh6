@@ -217,7 +217,8 @@ int main(int argc, char *argv[])
 
     if (mycp_do_copy(sources, sources_len, dest, dest_is_dir, 
                 &err_msg, err_msg_len,
-                verbose_flag, update_flag, dereference_flag)) {
+                verbose_flag, update_flag, dereference_flag,
+                no_clobber_flag)) {
         printf(err_msg);
         if (strlen(err_msg) > 0) {
             fprintf(stderr,
