@@ -29,10 +29,10 @@
 int mycp_do_copy(char **sources, int sources_len, 
         char *destname, int dest_is_dir, char **err_msg, int err_msg_len,
         int verbose_flag, int update_flag, int dereference_flag,
-        int no_clobber_flag)
+        int no_clobber_flag, int interactive_flag)
 {
     int src, destdir, dest;
-    int s_ind, err;
+    int s_ind, err, ans;
     int dest_exist;
     int allow_copy = 1;
     int linkname_len_max = 1024;
@@ -116,6 +116,14 @@ int mycp_do_copy(char **sources, int sources_len,
                 allow_copy = !(update_flag && 
                         !(src_stat.st_mtime > dest_stat.st_mtime)) &&
                         !no_clobber_flag;
+
+                if (interactive_flag) {
+                    printf("%s: overwrite '%s/%s'? ", "", 
+                            destname,
+                            sources[s_ind]);
+                    ans = getc(stdin);
+                    allow_copy = ans == 'y' || ans == 'Y';
+                }
             }
 
             if (allow_copy && !S_ISLNK(src_stat.st_mode)) {
@@ -170,6 +178,13 @@ int mycp_do_copy(char **sources, int sources_len,
                 allow_copy = !(update_flag && 
                         !(src_stat.st_mtime > dest_stat.st_mtime)) &&
                         !no_clobber_flag;
+
+                if (interactive_flag) {
+                    printf("%s: overwrite '%s'? ", "", 
+                            destname);
+                    ans = getc(stdin);
+                    allow_copy = ans == 'y' || ans == 'Y';
+                }
             }
 
             if (allow_copy && !S_ISLNK(src_stat.st_mode)) {
@@ -211,7 +226,12 @@ int mycp_do_copy(char **sources, int sources_len,
         if (allow_copy && S_ISLNK(src_stat.st_mode)) {
             linkname = calloc(linkname_len_max, sizeof(char));
             if (linkname == NULL) {
-                // Attention pas complet !
+                err = errno;
+                close(src);
+                close(dest);
+                if (dest_is_dir)
+                    close(destdir);
+                errno = err;
                 return EXIT_FAILURE;
             }
 
@@ -222,6 +242,7 @@ int mycp_do_copy(char **sources, int sources_len,
                 snprintf(*err_msg, err_msg_len, 
                         "failed access link '%s'",
                         sources[s_ind]);
+                free(linkname);
                 close(src);
                 close(dest);
                 if (dest_is_dir)
@@ -238,7 +259,17 @@ int mycp_do_copy(char **sources, int sources_len,
                                 destname, sources[s_ind]);
 
                     if (unlinkat(destdir, sources[s_ind], 0)) {
-                        // Attention pas complet
+                        err = errno;
+                        snprintf(*err_msg, err_msg_len, 
+                                "failed to remove '%s/%s'",
+                                destname,
+                                sources[s_ind]);
+                        free(linkname);
+                        close(src);
+                        close(dest);
+                        if (dest_is_dir)
+                            close(destdir);
+                        errno = err;
                         return EXIT_FAILURE;
                     }
                 } else {
@@ -246,7 +277,16 @@ int mycp_do_copy(char **sources, int sources_len,
                         printf("'%s' removed\n", destname);
 
                     if (unlink(destname)) {
-                        // Attention pas complet
+                        err = errno;
+                        snprintf(*err_msg, err_msg_len, 
+                                "failed to remove '%s'",
+                                sources[s_ind]);
+                        free(linkname);
+                        close(src);
+                        close(dest);
+                        if (dest_is_dir)
+                            close(destdir);
+                        errno = err;
                         return EXIT_FAILURE;
                     }
                 }
@@ -261,7 +301,17 @@ int mycp_do_copy(char **sources, int sources_len,
                 }
 
                 if (symlinkat(linkname, destdir, sources[s_ind])) {
-                    // Attention pas complet
+                    err = errno;
+                    snprintf(*err_msg, err_msg_len, 
+                            "failed to create link '%s/%s'",
+                            destname,
+                            sources[s_ind]);
+                    free(linkname);
+                    close(src);
+                    close(dest);
+                    if (dest_is_dir)
+                        close(destdir);
+                    errno = err;
                     return EXIT_FAILURE;
                 }
             } else {
@@ -272,13 +322,27 @@ int mycp_do_copy(char **sources, int sources_len,
                 }
 
                 if (symlink(linkname, destname)) {
-                    // Attention pas complet
+                    err = errno;
+                    snprintf(*err_msg, err_msg_len, 
+                            "failed to remove '%s'",
+                            sources[s_ind]);
+                    free(linkname);
+                    close(src);
+                    close(dest);
+                    if (dest_is_dir)
+                        close(destdir);
+                    errno = err;
                     return EXIT_FAILURE;
                 }
             }
             free(linkname);
         }
+        close(src);
+        //close(dest);
     }
+
+    if (dest_is_dir)
+        close(destdir);
 
     return EXIT_SUCCESS;
 }

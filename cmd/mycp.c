@@ -28,6 +28,7 @@
 int main(int argc, char *argv[])
 {
     int dereference_flag = 1;
+    int interactive_flag = 0;
     int link_flag = 0;
     int no_clobber_flag = 0;
     int no_target_directory_flag = 0;
@@ -41,6 +42,7 @@ int main(int argc, char *argv[])
     char *pgr_name;
     int err_msg_len = 2048;
     char *err_msg;
+    char **tmp;
     char **sources;
     int sources_len = 0;
     char *dest = NULL;
@@ -49,9 +51,11 @@ int main(int argc, char *argv[])
     int dest_must_be_a_dir;
     int source_error = 0;
     struct stat dest_stat;
+    struct stat src_stat;
     struct option options[] = 
     {
         {"dereference", no_argument, NULL, 'L'},
+        {"interactive", no_argument, NULL, 'i'},
         {"link", no_argument, NULL, 'l'},
         {"no-clobber", no_argument, NULL, 'n'},
         {"no-dereference", no_argument, NULL, 'P'},
@@ -66,9 +70,13 @@ int main(int argc, char *argv[])
     pgr_name = argv[0];
 
     while ((c = getopt_long(argc, argv,
-                "lLnPrRt:Tuv",
+                "ilLnPrRt:Tuv",
                 options, NULL)) != -1) {
         switch (c) {
+            case 'i':
+                interactive_flag = 1;
+                no_clobber_flag = 0;
+                break;
             case 'l':
                 link_flag = 1;
                 break;
@@ -183,24 +191,47 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    src_ind = 0;
     for (arg_ind = optind; arg_ind < optind + sources_len; arg_ind++) {
-        src_ind = arg_ind - optind;
-        sources[src_ind] = strdup(argv[arg_ind]);
-        if (sources[src_ind] == NULL) {
-            perror(pgr_name);
-            free(dest);
-            exit(EXIT_FAILURE);
-        }
-
-        if (access(sources[src_ind], R_OK)) {
+        if (access(argv[arg_ind], R_OK)) {
             fprintf(stderr, 
                     "%s: cannot stat '%s': %s\n", 
                     pgr_name,
-                    sources[src_ind],
+                    argv[arg_ind],
                     strerror(errno));
             source_error = 1;
         }
+
+        if (stat(argv[arg_ind], &src_stat)) {
+            perror(pgr_name);
+            exit(EXIT_FAILURE);
+        }
+
+        if (S_ISDIR(src_stat.st_mode)) {
+            fprintf(stderr, 
+                    "%s: omitting directory '%s'\n", 
+                    pgr_name,
+                    argv[arg_ind]);
+        } else {
+            sources[src_ind] = strdup(argv[arg_ind]);
+            if (sources[src_ind] == NULL) {
+                perror(pgr_name);
+                free(dest);
+                exit(EXIT_FAILURE);
+            }
+            src_ind++;
+        }
     }
+    // src_ind is the size of the array sources
+
+    tmp = realloc(sources, src_ind * sizeof(char*));
+    if (tmp == NULL) {
+        free(dest);
+        mycp_free_sources(sources, sources_len);
+        exit(EXIT_FAILURE);
+    }
+    sources_len = src_ind;
+    sources = tmp;
 
     if (source_error) {
         free(dest);
@@ -213,12 +244,13 @@ int main(int argc, char *argv[])
         perror(pgr_name);
         free(dest);
         mycp_free_sources(sources, sources_len);
+        exit(EXIT_FAILURE);
     }
 
     if (mycp_do_copy(sources, sources_len, dest, dest_is_dir, 
                 &err_msg, err_msg_len,
                 verbose_flag, update_flag, dereference_flag,
-                no_clobber_flag)) {
+                no_clobber_flag, interactive_flag)) {
         printf(err_msg);
         if (strlen(err_msg) > 0) {
             fprintf(stderr,
