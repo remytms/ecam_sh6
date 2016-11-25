@@ -38,6 +38,8 @@ int main(int argc, char *argv[])
     int c, i, j, arg_ind, src_ind;
     int nbr_args;
     char *pgr_name;
+    int err_msg_len = 2048;
+    char *err_msg;
     char **sources;
     int sources_len = 0;
     char *dest = NULL;
@@ -197,17 +199,36 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (mycp_do_copy(sources, sources_len, 
-                dest, dest_is_dir, verbose_flag)) {
-        fprintf(stderr, 
-                "%s: failed to copy: %s\n", 
-                pgr_name,
-                strerror(errno));
+    err_msg = calloc(err_msg_len, sizeof(char));
+    if (err_msg == NULL) {
+        perror(pgr_name);
         free(dest);
+        mycp_free_sources(sources, sources_len);
+    }
+
+    if (mycp_do_copy(sources, sources_len, dest, dest_is_dir, 
+                &err_msg, err_msg_len,
+                verbose_flag, update_flag)) {
+        printf(err_msg);
+        if (strlen(err_msg) > 0) {
+            fprintf(stderr,
+                    "%s: %s: %s\n",
+                    pgr_name,
+                    err_msg,
+                    strerror(errno));
+        } else {
+            fprintf(stderr, 
+                    "%s: failed to copy: %s\n", 
+                    pgr_name,
+                    strerror(errno));
+        }
+        free(dest);
+        free(err_msg);
         mycp_free_sources(sources, sources_len);
         exit(EXIT_FAILURE);
     }
 
+    free(err_msg);
     mycp_free_sources(sources, sources_len);
     free(dest);
 

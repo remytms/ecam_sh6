@@ -27,11 +27,14 @@
  * Copy sources to destination.
  */
 int mycp_do_copy(char **sources, int sources_len, 
-        char *destname, int dest_is_dir, int verbose_flag)
+        char *destname, int dest_is_dir, char **err_msg, int err_msg_len,
+        int verbose_flag, int update_flag)
 {
     int src, destdir, dest;
     int s_ind, err;
+    int allow_copy = 1;
     struct stat src_stat;
+    struct stat dest_stat;
 
     if (dest_is_dir) {
         destdir = open(destname, O_RDONLY | O_DIRECTORY);
@@ -54,47 +57,110 @@ int mycp_do_copy(char **sources, int sources_len,
         }
 
         if (dest_is_dir) {
-            if (verbose_flag) {
-                printf("'%s' -> '%s/%s'\n",
-                        sources[s_ind],
-                        destname,
-                        sources[s_ind]);
+            if (faccessat(destdir, sources[s_ind], 
+                        F_OK, AT_SYMLINK_NOFOLLOW) == 0) {
+                if (faccessat(destdir, sources[s_ind], 
+                            W_OK, AT_SYMLINK_NOFOLLOW)) {
+                    err = errno;
+                    snprintf(*err_msg, err_msg_len, 
+                            "cannot create regular file '%s':",
+                            sources[s_ind]);
+                    close(src);
+                    close(destdir);
+                    errno = err;
+                    return EXIT_FAILURE;
+                }
+
+                if (fstatat(destdir, sources[s_ind], 
+                            &dest_stat, AT_SYMLINK_NOFOLLOW)) {
+                    err = errno;
+                    close(src);
+                    close(destdir);
+                    errno = err;
+                    return EXIT_FAILURE;
+                }
+
+                /* 
+                 * If the update_flag is on, allow copy only if source
+                 * is newer than dest.
+                 */
+                allow_copy = !(update_flag && 
+                        !(src_stat.st_mtime > dest_stat.st_mtime));
             }
 
-            dest = openat(destdir, sources[s_ind], 
-                    O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
-            if (dest == -1) {
-                err = errno;
-                close(src);
-                close(destdir);
-                errno = err;
-                return EXIT_FAILURE;
+            if (allow_copy) {
+                if (verbose_flag) {
+                    printf("'%s' -> '%s/%s'\n",
+                            sources[s_ind],
+                            destname,
+                            sources[s_ind]);
+                }
+
+                dest = openat(destdir, sources[s_ind], 
+                        O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
+                if (dest == -1) {
+                    err = errno;
+                    close(src);
+                    close(destdir);
+                    errno = err;
+                    return EXIT_FAILURE;
+                }
             }
         } else {
-            if (verbose_flag) {
-                printf("'%s' -> '%s'\n",
-                        sources[s_ind],
-                        destname);
+            if (access(destname, F_OK) == 0) {
+                if (access(destname, W_OK)) {
+                    err = errno;
+                    snprintf(*err_msg, err_msg_len, 
+                            "cannot create regular file '%s'",
+                            sources[s_ind]);
+                    close(src);
+                    errno = err;
+                    return EXIT_FAILURE;
+                }
+
+                if (stat(destname, &dest_stat)) {
+                    err = errno;
+                    close(src);
+                    errno = err;
+                    return EXIT_FAILURE;
+                }
+
+                /* 
+                 * If the update_flag is on, allow copy only if source
+                 * is newer than dest.
+                 */
+                allow_copy = !(update_flag && 
+                        !(src_stat.st_mtime > dest_stat.st_mtime));
             }
 
-            dest = open(destname, 
-                    O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
-            if (dest == -1) {
-                err = errno;
-                close(src);
-                errno = err;
-                return EXIT_FAILURE;
+            if (allow_copy) {
+                if (verbose_flag) {
+                    printf("'%s' -> '%s'\n",
+                            sources[s_ind],
+                            destname);
+                }
+
+                dest = open(destname, 
+                        O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
+                if (dest == -1) {
+                    err = errno;
+                    close(src);
+                    errno = err;
+                    return EXIT_FAILURE;
+                }
             }
         }
 
-        if (mycp_copy(src, dest)) {
-            err = errno;
-            close(src);
-            close(dest);
-            if (dest_is_dir)
-                close(destdir);
-            errno = err;
-            return EXIT_FAILURE;
+        if (allow_copy) {
+            if (mycp_copy(src, dest)) {
+                err = errno;
+                close(src);
+                close(dest);
+                if (dest_is_dir)
+                    close(destdir);
+                errno = err;
+                return EXIT_FAILURE;
+            }
         }
     }
 
