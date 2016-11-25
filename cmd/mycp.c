@@ -40,6 +40,10 @@ int main(int argc, char *argv[])
     char **sources;
     int sources_len = 0;
     char *dest = NULL;
+    int dest_exist;
+    int dest_is_dir;
+    int dest_must_be_a_dir;
+    int source_error = 0;
     struct stat dest_stat;
     struct option options[] = 
     {
@@ -70,7 +74,15 @@ int main(int argc, char *argv[])
                 break;
             case 't':
                 target_directory_flag = 1;
+                if (optarg == NULL) {
+                    perror(pgr_name);
+                    exit(EXIT_FAILURE);
+                }
                 dest = strdup(optarg);
+                if (dest == NULL) {
+                    perror(pgr_name);
+                    exit(EXIT_FAILURE);
+                }
                 break;
             case 'T':
                 no_target_directory_flag = 1;
@@ -84,6 +96,7 @@ int main(int argc, char *argv[])
     }
 
     nbr_args = argc - optind;
+    dest_must_be_a_dir = target_directory_flag || (nbr_args > 2);
 
     if (nbr_args == 0) {
         fprintf(stderr, 
@@ -92,57 +105,47 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (target_directory_flag) {
-        sources_len = nbr_args;
-        sources = malloc(sources_len * sizeof(char*));
-        if (sources == NULL) {
-            perror(pgr_name);
-            exit(EXIT_FAILURE);
-        }
+    if (nbr_args == 1 && !target_directory_flag) {
+        fprintf(stderr, 
+                "%s: missing destination file after '%s'\n",
+                pgr_name,
+                argv[1]);
+        exit(EXIT_FAILURE);
+    }
 
-        for (arg_ind = optind; arg_ind < argc; arg_ind++) {
-            src_ind = arg_ind - optind;
-            sources[src_ind] = strdup(argv[arg_ind]);
-            if (sources[src_ind] == NULL) {
-                perror(pgr_name);
-                exit(EXIT_FAILURE);
-            }
-        }
-    } else {
-        if (nbr_args == 1) {
-            fprintf(stderr, 
-                    "%s: missing destination file after '%s'\n",
-                    pgr_name,
-                    argv[1]);
-            exit(EXIT_FAILURE);
-        }
-
+    if (!target_directory_flag) {
         dest = strdup(argv[argc-1]);
         if (dest == NULL) {
             perror(pgr_name);
             exit(EXIT_FAILURE);
         }
+    }
 
-        if (no_target_directory_flag && nbr_args > 2) {
-            fprintf(stderr,
-                    "%s: extra operand '%s'\n",
-                    pgr_name,
-                    dest);
-            free(dest);
-            exit(EXIT_FAILURE);
-        }
+    if (no_target_directory_flag && dest_must_be_a_dir) {
+        fprintf(stderr,
+                "%s: extra operand '%s'\n",
+                pgr_name,
+                dest);
+        free(dest);
+        exit(EXIT_FAILURE);
+    }
 
-        if (stat(dest, &dest_stat)) {
-            fprintf(stderr,
-                    "%s: cannot stat '%s': %s\n",
-                    pgr_name,
-                    dest,
-                    strerror(errno));
-            free(dest);
-            exit(EXIT_FAILURE);
-        }
+    dest_is_dir = 0;
+    if (!stat(dest, &dest_stat)) {
+        dest_is_dir = S_ISDIR(dest_stat.st_mode);
+    }
 
-        if (no_target_directory_flag && S_ISDIR(dest_stat.st_mode)) {
+    if (!dest_is_dir && dest_must_be_a_dir) {
+        fprintf(stderr,
+                "%s: target '%s' is not a directory\n",
+                pgr_name,
+                dest);
+        free(dest);
+        exit(EXIT_FAILURE);
+    }
+
+    if (no_target_directory_flag && dest_exist) {
+        if (dest_is_dir) {
             fprintf(stderr,
                     "%s: cannot overwrite directory '%s' with non-directory\n",
                     pgr_name,
@@ -150,48 +153,56 @@ int main(int argc, char *argv[])
             free(dest);
             exit(EXIT_FAILURE);
         }
+    }
 
-        if (nbr_args > 2 && !S_ISDIR(dest_stat.st_mode)) {
-            fprintf(stderr,
-                    "%s: target '%s' is not a directory\n",
-                    pgr_name,
-                    dest);
-            free(dest);
-            exit(EXIT_FAILURE);
-        }
-
+    if (target_directory_flag) {
+        sources_len = nbr_args;
+    } else {
         sources_len = nbr_args - 1;
-        sources = malloc(sources_len * sizeof(char*));
-        if (sources == NULL) {
+    }
+
+    sources = malloc(sources_len * sizeof(char*));
+    if (sources == NULL) {
+        perror(pgr_name);
+        exit(EXIT_FAILURE);
+    }
+
+    for (arg_ind = optind; arg_ind < optind + sources_len; arg_ind++) {
+        src_ind = arg_ind - optind;
+        sources[src_ind] = strdup(argv[arg_ind]);
+        if (sources[src_ind] == NULL) {
             perror(pgr_name);
             free(dest);
             exit(EXIT_FAILURE);
         }
 
-        for (arg_ind = optind; arg_ind < argc-1; arg_ind++) {
-            src_ind = arg_ind - optind;
-            sources[src_ind] = strdup(argv[arg_ind]);
-            if (sources[src_ind] == NULL) {
-                perror(pgr_name);
-                free(dest);
-                exit(EXIT_FAILURE);
-            }
+        if (access(sources[src_ind], R_OK)) {
+            fprintf(stderr, 
+                    "%s: cannot stat '%s': %s\n", 
+                    pgr_name,
+                    sources[src_ind],
+                    strerror(errno));
+            source_error = 1;
         }
     }
 
-    if (dest == NULL)
-        printf("No destination\n");
-    else
-        printf("Destination: %s\n", dest);
-
-    printf("Sources: ");
-    for (i = 0; i < sources_len; i++) {
-        printf("%s ", sources[i]);
-        free(sources[i]);
+    if (source_error) {
+        free(dest);
+        mycp_free_sources(sources, sources_len);
+        exit(EXIT_FAILURE);
     }
-    printf("\n");
-    free(sources);
 
+    if (mycp_do_copy(sources, sources_len, dest, dest_is_dir)) {
+        fprintf(stderr, 
+                "%s: failed to copy: %s\n", 
+                pgr_name,
+                strerror(errno));
+        free(dest);
+        mycp_free_sources(sources, sources_len);
+        exit(EXIT_FAILURE);
+    }
+
+    mycp_free_sources(sources, sources_len);
     free(dest);
 
     return EXIT_SUCCESS;
