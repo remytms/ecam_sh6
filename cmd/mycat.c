@@ -24,8 +24,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "mycatlib.h"
-
 int main(int argc, char *argv[])
 {
     int number_flag = 0;
