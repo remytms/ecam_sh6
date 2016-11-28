@@ -24,7 +24,30 @@
 #include <string.h>
 
 /*
- * Copy sources to destination.
+ * Copy sources to a target destination. If destname is a directory it
+ * copies the sources in this directory. If destname is not a directory
+ * then the first element of sources it copied to destname. If an error
+ * occured, it put an error message in err_msg. err_msg must be already
+ * allocated and its maximum size put in err_msg_len. err_msg_len is not
+ * modified after writing an error message in err_msg.
+ *
+ * Args:
+ *     char **sources: a list of the names of the files to be copied
+ *     int sources_len: the number of file names stored in sources.
+ *     char *destname: the name of the target file or directory
+ *     int dest_is_dir: set to 1 if destname is a directory, 0 if not.
+ *     char **err_msg: a pointer to an empty allocade memory to store
+ *                     error messages.
+ *     int err_msg_len: the maximum size of the err_msg buffer.
+ *     int verbose_flag: set to 1 if verbose_flag is on, 0 if not.
+ *     int update_flag: set to 1 if update_flag is on, 0 if not.
+ *     int dereference_flag: set to 1 if dereference_flag is on, 0 if not.
+ *     int no_clobber_flag: set to 1 if no_clobber_flag is on, 0 if not.
+ *     int interactive_flag: set to 1 if interactive_flag is on, 0 if not.
+ *
+ * Return value:
+ *     On sucess it returns EXIT_SUCCESS. If an error occured, it
+ *     returns EXIT_FAILURE and errno or err_msg is set appropriately.
  */
 int mycp_do_copy(char **sources, int sources_len, 
         char *destname, int dest_is_dir, char **err_msg, int err_msg_len,
@@ -64,11 +87,17 @@ int mycp_do_copy(char **sources, int sources_len,
             snprintf(*err_msg, err_msg_len, 
                     "cannot stat '%s'",
                     sources[s_ind]);
+            if (dest_is_dir)
+                close(destdir);
             errno = err;
             return EXIT_FAILURE;
         }
 
-        src = open(sources[s_ind], O_RDONLY);
+        if (dereference_flag && S_ISLNK(src_stat.st_mode))
+            src = open(sources[s_ind], O_RDONLY);
+        else
+            src = openat(AT_FDCWD, sources[s_ind], O_RDONLY,
+                    AT_SYMLINK_NOFOLLOW);
         if (src == -1) {
             if (dest_is_dir) {
                 err = errno;
@@ -111,13 +140,18 @@ int mycp_do_copy(char **sources, int sources_len,
 
                 /* 
                  * If the update_flag is on, allow copy only if source
-                 * is newer than dest.
+                 * is newer than dest. Do not allow copy if
+                 * no_clobber_flag is on.
                  */
                 allow_copy = !(update_flag && 
                         !(src_stat.st_mtime > dest_stat.st_mtime)) &&
                         !no_clobber_flag;
 
-                if (interactive_flag) {
+                /*
+                 * If copy is allowed and interactive_flag is on then
+                 * ask the permission to copy to the user.
+                 */
+                if (interactive_flag && allow_copy) {
                     printf("%s: overwrite '%s/%s'? ", "", 
                             destname,
                             sources[s_ind]);
@@ -127,13 +161,6 @@ int mycp_do_copy(char **sources, int sources_len,
             }
 
             if (allow_copy && !S_ISLNK(src_stat.st_mode)) {
-                if (verbose_flag) {
-                    printf("'%s' -> '%s/%s'\n",
-                            sources[s_ind],
-                            destname,
-                            sources[s_ind]);
-                }
-
                 dest = openat(destdir, sources[s_ind], 
                         O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
                 if (dest == -1) {
@@ -147,8 +174,15 @@ int mycp_do_copy(char **sources, int sources_len,
                     errno = err;
                     return EXIT_FAILURE;
                 }
+
+                if (verbose_flag) {
+                    printf("'%s' -> '%s/%s'\n",
+                            sources[s_ind],
+                            destname,
+                            sources[s_ind]);
+                }
             }
-        } else {
+        } else { // dest is not a directory
             dest_exist = access(destname, F_OK) == 0;
             if (dest_exist) {
                 if (access(destname, W_OK)) {
@@ -179,7 +213,11 @@ int mycp_do_copy(char **sources, int sources_len,
                         !(src_stat.st_mtime > dest_stat.st_mtime)) &&
                         !no_clobber_flag;
 
-                if (interactive_flag) {
+                /*
+                 * If copy is allowed and interactive_flag is on then
+                 * ask the permission to copy to the user.
+                 */
+                if (interactive_flag && allow_copy) {
                     printf("%s: overwrite '%s'? ", "", 
                             destname);
                     ans = getc(stdin);
@@ -188,12 +226,6 @@ int mycp_do_copy(char **sources, int sources_len,
             }
 
             if (allow_copy && !S_ISLNK(src_stat.st_mode)) {
-                if (verbose_flag) {
-                    printf("'%s' -> '%s'\n",
-                            sources[s_ind],
-                            destname);
-                }
-
                 dest = open(destname, 
                         O_CREAT | O_WRONLY | O_TRUNC, src_stat.st_mode);
                 if (dest == -1) {
@@ -205,9 +237,18 @@ int mycp_do_copy(char **sources, int sources_len,
                     errno = err;
                     return EXIT_FAILURE;
                 }
+
+                if (verbose_flag) {
+                    printf("'%s' -> '%s'\n",
+                            sources[s_ind],
+                            destname);
+                }
             }
         }
 
+        /*
+         * Do copy if isn't a link
+         */
         if (allow_copy && !S_ISLNK(src_stat.st_mode)) {
             if (mycp_copy(src, dest)) {
                 err = errno;
@@ -221,14 +262,20 @@ int mycp_do_copy(char **sources, int sources_len,
                 errno = err;
                 return EXIT_FAILURE;
             }
+            close(dest);
         }
 
+        /*
+         * Do copy if it's a link
+         */
         if (allow_copy && S_ISLNK(src_stat.st_mode)) {
+            /*
+             * Get the file pointed by the link
+             */
             linkname = calloc(linkname_len_max, sizeof(char));
             if (linkname == NULL) {
                 err = errno;
                 close(src);
-                close(dest);
                 if (dest_is_dir)
                     close(destdir);
                 errno = err;
@@ -244,7 +291,6 @@ int mycp_do_copy(char **sources, int sources_len,
                         sources[s_ind]);
                 free(linkname);
                 close(src);
-                close(dest);
                 if (dest_is_dir)
                     close(destdir);
                 errno = err;
@@ -252,12 +298,11 @@ int mycp_do_copy(char **sources, int sources_len,
             }
             linkname[linkname_len] = '\0';
 
+            /*
+             * Remove destination if it already exist
+             */
             if (dest_exist) {
                 if (dest_is_dir) {
-                    if (verbose_flag)
-                        printf("'%s/%s' removed\n", 
-                                destname, sources[s_ind]);
-
                     if (unlinkat(destdir, sources[s_ind], 0)) {
                         err = errno;
                         snprintf(*err_msg, err_msg_len, 
@@ -266,16 +311,16 @@ int mycp_do_copy(char **sources, int sources_len,
                                 sources[s_ind]);
                         free(linkname);
                         close(src);
-                        close(dest);
                         if (dest_is_dir)
                             close(destdir);
                         errno = err;
                         return EXIT_FAILURE;
                     }
-                } else {
-                    if (verbose_flag)
-                        printf("'%s' removed\n", destname);
 
+                    if (verbose_flag)
+                        printf("'%s/%s' removed\n", 
+                                destname, sources[s_ind]);
+                } else { // dest is not a directory
                     if (unlink(destname)) {
                         err = errno;
                         snprintf(*err_msg, err_msg_len, 
@@ -283,23 +328,21 @@ int mycp_do_copy(char **sources, int sources_len,
                                 sources[s_ind]);
                         free(linkname);
                         close(src);
-                        close(dest);
                         if (dest_is_dir)
                             close(destdir);
                         errno = err;
                         return EXIT_FAILURE;
                     }
+
+                    if (verbose_flag)
+                        printf("'%s' removed\n", destname);
                 }
             }
 
+            /*
+             * Copy the link
+             */
             if (dest_is_dir) {
-                if (verbose_flag) {
-                    printf("'%s' -> '%s/%s'\n",
-                            sources[s_ind],
-                            destname,
-                            sources[s_ind]);
-                }
-
                 if (symlinkat(linkname, destdir, sources[s_ind])) {
                     err = errno;
                     snprintf(*err_msg, err_msg_len, 
@@ -308,19 +351,19 @@ int mycp_do_copy(char **sources, int sources_len,
                             sources[s_ind]);
                     free(linkname);
                     close(src);
-                    close(dest);
                     if (dest_is_dir)
                         close(destdir);
                     errno = err;
                     return EXIT_FAILURE;
                 }
-            } else {
-                if (verbose_flag) {
-                    printf("'%s' -> '%s'\n",
-                            sources[s_ind],
-                            destname);
-                }
 
+                if (verbose_flag) {
+                    printf("'%s' -> '%s/%s'\n",
+                            sources[s_ind],
+                            destname,
+                            sources[s_ind]);
+                }
+            } else { // dest is not a directory
                 if (symlink(linkname, destname)) {
                     err = errno;
                     snprintf(*err_msg, err_msg_len, 
@@ -328,17 +371,21 @@ int mycp_do_copy(char **sources, int sources_len,
                             sources[s_ind]);
                     free(linkname);
                     close(src);
-                    close(dest);
                     if (dest_is_dir)
                         close(destdir);
                     errno = err;
                     return EXIT_FAILURE;
                 }
+
+                if (verbose_flag) {
+                    printf("'%s' -> '%s'\n",
+                            sources[s_ind],
+                            destname);
+                }
             }
             free(linkname);
         }
         close(src);
-        //close(dest);
     }
 
     if (dest_is_dir)
@@ -348,7 +395,15 @@ int mycp_do_copy(char **sources, int sources_len,
 }
 
 /*
- * Copy
+ * Copy src to dest. src and dest must be valid file descriptors.
+ *
+ * Args:
+ *     int scr: a file descriptor to the source
+ *     int dest: a file descriptor to the destination
+ *
+ * Return value:
+ *     If an error occured it returns -1 and errno is set apropriatly.
+ *     On success it returns EXIT_SUCCESS.
  *
  * See also:
  *     man 2 read
@@ -372,9 +427,16 @@ int mycp_copy(int src, int dest)
 }
 
 /*
- * Free sources var
+ * Free sources variable
+ *
+ * Args:
+ *     char **array: the array to empty
+ *     int arr_len: the length of the array
+ *
+ * Return value:
+ *     nothing
  */
-void mycp_free_sources(char** array, int ar_len)
+void mycp_free_sources(char **array, int ar_len)
 {
     int i;
     for (i = 0; i < ar_len; i++)
