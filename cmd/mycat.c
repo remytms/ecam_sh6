@@ -16,17 +16,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
+
+#include "mycatlib.h"
 
 int main(int argc, char *argv[])
 {
     int number_flag = 0;
     int show_ends_flag = 0;
 
-    int c;
+    int c, i, nread, arg_ind;
+    int file;
+    int line_nbr;
+    int do_print_line_nbr = 0;
     char *pgr_name;
+    char *filename;
+    int buf_len = 4;
+    char buf[buf_len];
+    char buf_c;
+    struct stat file_stat;
     struct option options[] = 
     {
         {"show-ends", no_argument, NULL, 'E'},
@@ -51,9 +65,74 @@ int main(int argc, char *argv[])
         }
     }
 
-    /*
-     * Complete code here.
-     */
+    line_nbr = 0;
+    do_print_line_nbr = number_flag;
+    for (arg_ind = optind; arg_ind < argc; arg_ind++) {
+        filename = argv[arg_ind];
+
+        if (access(filename, R_OK)) {
+            fprintf(stderr, "%s: %s: %s\n",
+                    pgr_name, filename, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        if (stat(filename, &file_stat)) {
+            fprintf(stderr, "%s: %s: %s\n",
+                    pgr_name, filename, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        if (S_ISDIR(file_stat.st_mode)) {
+            errno = EISDIR;
+            fprintf(stderr, "%s: %s: %s\n",
+                    pgr_name, filename, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        file = open(filename, 0);
+        if (file == -1) {
+            fprintf(stderr, "%s: %s: %s\n",
+                    pgr_name, filename, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        while (nread = read(file, buf, buf_len)) {
+            if (nread == -1) {
+                fprintf(stderr, "%s: %s: %s\n",
+                        pgr_name, filename, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
+            for (i = 0; i < nread; i++) {
+                // Show line number
+                if (number_flag && do_print_line_nbr) {
+                    fprintf(stdout, "%6d  ", ++line_nbr);
+                    fflush(stdout);
+                }
+
+                // Set to 1 if we need to print the line number on the next
+                // iteration
+                do_print_line_nbr = buf[i] == '\n';
+
+                // Show ends of line
+                if (show_ends_flag && buf[i] == '\n') {
+                    buf_c = '$';
+                    if (write(STDOUT_FILENO, &buf_c, sizeof(char)) == -1) {
+                        fprintf(stderr, "%s: %s: %s\n",
+                                pgr_name, filename, strerror(errno));
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                // Print regular current char
+                if (write(STDOUT_FILENO, &buf[i], sizeof(char)) == -1) {
+                    fprintf(stderr, "%s: %s: %s\n",
+                            pgr_name, filename, strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+    }
 
     return EXIT_SUCCESS;
 }
