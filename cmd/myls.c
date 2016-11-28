@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     int recursive_flag = 0;
     int do_not_sort = 0;
 
-    int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos;
+    int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos, nread;
     int is_hidden, is_backup;
     char buf[BUF_SIZE];
     char **filenames;
@@ -49,6 +49,8 @@ int main(int argc, char *argv[])
     char *username;
     char *groupname;
     char *mtime;
+    char *symlink;
+    int symlink_len = 4096;
     struct linux_dirent *dir_entries;
     struct stat cur_dir_stat;
     struct stat *file_stat;
@@ -248,9 +250,39 @@ int main(int argc, char *argv[])
                     printf("%s\t", mtime);
                     free(mtime);
 
+                    // Print link
+                    if (S_ISLNK(file_stat->st_mode)) {
+                        symlink = calloc(symlink_len, sizeof(char));
+                        if (symlink == NULL) {
+                            perror(pgr_name);
+                            exit(EXIT_FAILURE);
+                        }
+
+                        if ((nread = readlinkat(dir, filenames[j], 
+                                    symlink, symlink_len)) == -1) {
+                            fprintf(stderr,
+                                    "%s: connot read link '%s'\n",
+                                    pgr_name,
+                                    filenames[j]);
+                            exit(EXIT_FAILURE);
+                        }
+                        // Add terminal null point
+                        if (nread < symlink_len)
+                            symlink[nread] = '\0';
+                        else
+                            symlink[nread-1] = '\0';
+
+                        printf("%s -> %s\n", 
+                                filenames[j],
+                                symlink);
+                        free(symlink);
+                    } else {
+                        printf("%s\n", filenames[j]);
+                    }
+                } else { // if we don't print details
+                    printf("%s\n", filenames[j]);
                 }
                 free(file_stat);
-                printf("%s\n", filenames[j]);
             }
             free(filenames[j]);
         }
