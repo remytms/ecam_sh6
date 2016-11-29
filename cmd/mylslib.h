@@ -114,6 +114,7 @@ int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
     int nread, bpos;
     char buf[BUF_SIZE];
     char **filenames_tmp;
+    char **tmp;
     struct linux_dirent *dir_entries;
     size_t filenames_real_len = 0;
 
@@ -125,6 +126,8 @@ int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
 
     *filenames_len = 2;
     filenames_tmp = calloc(*filenames_len, sizeof(char*));
+    if (filenames_tmp == NULL)
+        return EXIT_FAILURE;
 
     if (dir < 0) {
         free(filenames_tmp);
@@ -137,15 +140,17 @@ int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
 
                 if (filenames_real_len == *filenames_len) {
                     *filenames_len *= 2;
-                    filenames_tmp = realloc(
+                    tmp = realloc(
                             filenames_tmp, 
                             *filenames_len * sizeof(char*));
+                    if (tmp == NULL)
+                        return EXIT_FAILURE;
+                    filenames_tmp = tmp;
                 }
 
-                filenames_tmp[filenames_real_len] = calloc(
-                        (strlen(dir_entries->d_name) + 1),
-                        sizeof(char*));
-                strcpy(filenames_tmp[filenames_real_len], dir_entries->d_name);
+                filenames_tmp[filenames_real_len] = strdup(dir_entries->d_name);
+                if (filenames_tmp[filenames_real_len] == NULL)
+                    return EXIT_FAILURE;
                 filenames_real_len++;
 
                 bpos += dir_entries->d_reclen;
@@ -153,7 +158,10 @@ int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
         }
     }
 
-    filenames_tmp = realloc(filenames_tmp, filenames_real_len * sizeof(char*));
+    tmp = realloc(filenames_tmp, filenames_real_len * sizeof(char*));
+    if (tmp == NULL)
+        return EXIT_FAILURE;
+    filenames_tmp = tmp;
     *filenames_len = filenames_real_len;
 
     *filenames = filenames_tmp;
@@ -165,8 +173,9 @@ int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
  * Determine if filename is a regular file or not.
  *
  * Return value:
- *     1 if filename is a regular file.
- *     0 if not.
+ *     1 if filename is a regular file
+ *     0 if not
+ *     -1 if an error occured
  *
  * See also:
  *     http://stackoverflow.com/questions/4553012/checking-if-a-file-is-a-directory-or-just-a-file
@@ -175,7 +184,9 @@ int myls_list_file_in_dir(int dir, char ***filenames, int *filenames_len)
 int myls_is_reg_file(char *filename)
 {
     struct stat filename_stat;
-    stat(filename, &filename_stat);
+    if (stat(filename, &filename_stat) == -1) {
+        return -1;
+    }
     return S_ISREG(filename_stat.st_mode);
 }
 
@@ -183,13 +194,16 @@ int myls_is_reg_file(char *filename)
  * Determine if filename is a directory or not.
  *
  * Return value:
- *     1 if filename is a directory.
- *     0 if not.
+ *     1 if filename is a directory
+ *     0 if not
+ *     -1 if an error occured
  */
 int myls_is_dir(char *filename)
 {
     struct stat filename_stat;
-    stat(filename, &filename_stat);
+    if (stat(filename, &filename_stat) == -1) {
+        return -1;
+    }
     return S_ISDIR(filename_stat.st_mode);
 }
 
@@ -213,21 +227,26 @@ size_t myls_get_mtime(struct stat *filename_stat,
     size_t res;
 
     mtime_raw = filename_stat->st_mtime;
-    now_raw = time(NULL);
+    if ((now_raw = time(NULL)) == -1)
+        return -1;
 
-    localtime_r(&now_raw, &now_lt);
-    localtime_r(&mtime_raw, &mtime_lt);
+    if (localtime_r(&now_raw, &now_lt) == NULL)
+        return -1;
+    if (localtime_r(&mtime_raw, &mtime_lt) == NULL)
+        return -1;
 
     if (now_lt.tm_year == mtime_lt.tm_year && 
         now_lt.tm_mon == mtime_lt.tm_mon) {
         if ((res = strftime(str, 100, "%b %d %H:%M", &mtime_lt)) < 0)
             return -1;
-        *mtime_str = strdup(str);
+        if ((*mtime_str = strdup(str)) == NULL)
+            return -1;
         return res;
     } else {
         if ((res = strftime(str, 100, "%b %d  %Y", &mtime_lt)) < 0)
             return -1;
-        *mtime_str = strdup(str);
+        if ((*mtime_str = strdup(str)) == NULL)
+            return -1;
         return res;
     }
 }
@@ -263,6 +282,8 @@ int myls_get_username(struct stat *filename_stat, char **str)
         return EXIT_FAILURE;
 
     *str = strdup(pw->pw_name);
+    if (*str == NULL)
+        return EXIT_FAILURE;
 
     return EXIT_SUCCESS;
 }
@@ -282,6 +303,8 @@ int myls_get_groupname(struct stat *filename_stat, char **str)
         return EXIT_FAILURE;
 
     *str = strdup(grp->gr_name);
+    if (*str == NULL)
+        return EXIT_FAILURE;
 
     return EXIT_SUCCESS;
 }
@@ -300,6 +323,8 @@ int myls_get_permission(struct stat *filename_stat,
 {
     mode_t filemode;
     char *str = calloc(11, sizeof(char));
+    if (str == NULL)
+        return EXIT_FAILURE;
 
     filemode = filename_stat->st_mode;
     str[0] = '\0';
@@ -407,12 +432,12 @@ int myls_array_insert(int pos, char *elem, char ***ar, int *ar_len)
     while (i_new < (ar_old_len + 1)) {
         if (i_new == pos) {
             ar_new[i_new] = strdup(elem);
-            if (!ar_new[i_new])
+            if (ar_new[i_new] == NULL)
                 return EXIT_FAILURE;
             i_new++;
         } else {
             ar_new[i_new] = strdup(ar_old[i_old]);
-            if (!ar_new[i_new])
+            if (ar_new[i_new] == NULL)
                 return EXIT_FAILURE;
             free(ar_old[i_old]);
             i_new++;

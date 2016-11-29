@@ -33,8 +33,10 @@ int main(int argc, char *argv[])
     int ignore_backup_flag = 0;
     int details_flag = 0;
     int recursive_flag = 0;
+    int do_not_sort = 0;
 
-    int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos;
+    int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos, nread;
+    int is_hidden, is_backup;
     char buf[BUF_SIZE];
     char **filenames;
     int filenames_len;
@@ -47,6 +49,8 @@ int main(int argc, char *argv[])
     char *username;
     char *groupname;
     char *mtime;
+    char *symlink;
+    int symlink_len = 4096;
     struct linux_dirent *dir_entries;
     struct stat cur_dir_stat;
     struct stat *file_stat;
@@ -61,7 +65,7 @@ int main(int argc, char *argv[])
     pgr_name = argv[0];
 
     while ((c = getopt_long(argc, argv,
-                "aBlR",
+                "aBflRU",
                 options, NULL)) != -1) {
         switch (c) {
             case 'a':
@@ -70,14 +74,20 @@ int main(int argc, char *argv[])
             case 'B':
                 ignore_backup_flag = 1;
                 break;
+            case 'f':
+                all_flag = 1;
+                do_not_sort = 1;
+                break;
             case 'l':
                 details_flag = 1;
                 break;
             case 'R':
                 recursive_flag = 1;
                 break;
+            case 'U':
+                do_not_sort = 1;
+                break;
             case '?':
-                printf("Case ?.\n");
             default:
                 abort();
         }
@@ -85,11 +95,17 @@ int main(int argc, char *argv[])
 
     if (argc - optind == 0) {
         dirnames_len = 1;
-        dirnames = calloc(dirnames_len, sizeof(char*));
+        if ((dirnames = calloc(dirnames_len, sizeof(char*))) == NULL) {
+            perror(pgr_name);
+            exit(EXIT_FAILURE);
+        }
         dirnames[0] = strdup(".");
     } else {
         dirnames_len = argc - optind;
-        dirnames = calloc(dirnames_len, sizeof(char*));
+        if ((dirnames = calloc(dirnames_len, sizeof(char*))) == NULL) {
+            perror(pgr_name);
+            exit(EXIT_FAILURE);
+        }
         for (cur_arg_index = optind; cur_arg_index < argc; cur_arg_index++) {
             dirnames[cur_arg_index-optind] = strdup(argv[cur_arg_index]);
         }
@@ -137,14 +153,23 @@ int main(int argc, char *argv[])
                 recursive_flag)
             printf("%s:\n", dirnames[d_ind]);
 
-        qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
+        if (!do_not_sort)
+            qsort(filenames, filenames_len, sizeof(char*), myls_str_alphanum_cmp);
 
         insert_pos = d_ind + 1;
         for(j = 0; j < filenames_len; j++) {
-            // Filter hidden file if needed
-            if (!(!all_flag && filenames[j][0] == '.')) {
+            is_hidden = filenames[j][0] == '.';
+            is_backup = filenames[j][strlen(filenames[j])-1] == '~';
+            // Filter hidden and backup file if needed
+            if ((all_flag && !ignore_backup_flag) || 
+                    (all_flag && !is_backup) ||
+                    (!is_hidden && !ignore_backup_flag) ||
+                    (!is_hidden && !is_backup)) {
                 // Get file stat
-                file_stat = malloc(sizeof(struct stat));
+                if ((file_stat = malloc(sizeof(struct stat))) == NULL) {
+                    perror(pgr_name);
+                    exit(EXIT_FAILURE);
+                }
                 if (myls_get_file_stat(dir, filenames[j], &file_stat)) {
                     fprintf(stderr, 
                             "%s: cannot access to details of %s: %s\n", 
@@ -158,11 +183,18 @@ int main(int argc, char *argv[])
                         strcmp(filenames[j], ".") && 
                         strcmp(filenames[j], "..")) {
                     full_dirname = myls_path_concat(dirnames[d_ind], filenames[j]);
-                    myls_array_insert(
+                    if (full_dirname == NULL) {
+                        perror(pgr_name);
+                        exit(EXIT_FAILURE);
+                    }
+                    if (myls_array_insert(
                             insert_pos++,
                             full_dirname,
                             &dirnames,
-                            &dirnames_len);
+                            &dirnames_len)) {
+                        perror(pgr_name);
+                        exit(EXIT_FAILURE);
+                    }
                     free(full_dirname);
                 }
 
@@ -218,9 +250,39 @@ int main(int argc, char *argv[])
                     printf("%s\t", mtime);
                     free(mtime);
 
+                    // Print link
+                    if (S_ISLNK(file_stat->st_mode)) {
+                        symlink = calloc(symlink_len, sizeof(char));
+                        if (symlink == NULL) {
+                            perror(pgr_name);
+                            exit(EXIT_FAILURE);
+                        }
+
+                        if ((nread = readlinkat(dir, filenames[j], 
+                                    symlink, symlink_len)) == -1) {
+                            fprintf(stderr,
+                                    "%s: connot read link '%s'\n",
+                                    pgr_name,
+                                    filenames[j]);
+                            exit(EXIT_FAILURE);
+                        }
+                        // Add terminal null point
+                        if (nread < symlink_len)
+                            symlink[nread] = '\0';
+                        else
+                            symlink[nread-1] = '\0';
+
+                        printf("%s -> %s\n", 
+                                filenames[j],
+                                symlink);
+                        free(symlink);
+                    } else {
+                        printf("%s\n", filenames[j]);
+                    }
+                } else { // if we don't print details
+                    printf("%s\n", filenames[j]);
                 }
                 free(file_stat);
-                printf("%s\n", filenames[j]);
             }
             free(filenames[j]);
         }

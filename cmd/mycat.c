@@ -16,45 +16,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sh6lib.h"
+#include <getopt.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
-    int i, err;
-    char *path_to_pgr;
+    int number_flag = 0;
+    int show_ends_flag = 0;
+
+    int c;
     char *pgr_name;
-    char *cmd_line = NULL;
-    size_t cmd_line_len = 0;
+    struct option options[] = 
+    {
+        {"show-ends", no_argument, NULL, 'E'},
+        {"number", no_argument, NULL, 'n'},
+        {0, 0, 0, 0}
+    };
 
     pgr_name = argv[0];
 
-    if ((path_to_pgr = sh6_path_to_custom_programs(argv[0])) == NULL) {
-        perror(pgr_name);
-        exit(EXIT_FAILURE);
-    }
-
-    if (sh6_modify_path(path_to_pgr)) {
-        perror(pgr_name);
-        exit(EXIT_FAILURE);
-    }
-    free(path_to_pgr);
-
-    if (argc >= 2) {
-        for(i = 1; i < argc; i++) {
-            sh6_exec_bash(argv[i]);
-        }
-    } else {
-        while (1) {
-            printf("sh6 > ");
-            if (getline(&cmd_line, &cmd_line_len, stdin) > -1) {
-                if (sh6_is_exit(cmd_line))
-                    break;
-                if(system(cmd_line) < 0)
-                    printf("Error when executing '%s'\n", cmd_line);
-            }
+    while ((c = getopt_long(argc, argv,
+                "En",
+                options, NULL)) != -1) {
+        switch (c) {
+            case 'E':
+                show_ends_flag = 1;
+                break;
+            case 'n':
+                number_flag = 1;
+                break;
+            default:
+                abort();
         }
     }
-    free(cmd_line);
-    printf("Bye!\n");
+
+    /*
+     * Complete code here.
+     */
+
+    return EXIT_SUCCESS;
 }
 
