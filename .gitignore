@@ -10,6 +10,11 @@ mypwd
 # Vim tmp files
 *.swp
 
+# Waf
+
+build
+.*
+
 # Object files
 *.o
 *.ko
