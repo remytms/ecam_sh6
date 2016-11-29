@@ -21,6 +21,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -94,7 +95,7 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        while (nread = read(file, buf, buf_len)) {
+        while ((nread = read(file, buf, buf_len))) {
             if (nread == -1) {
                 fprintf(stderr, "%s: %s: %s\n",
                         pgr_name, filename, strerror(errno));
