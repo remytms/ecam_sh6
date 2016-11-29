@@ -35,15 +35,13 @@ int main(int argc, char *argv[])
     int recursive_flag = 0;
     int do_not_sort = 0;
 
-    int c, cur_arg_index, j, dir, res, d_ind, f_ind, insert_pos, nread;
+    int c, cur_arg_index, j, dir, res, d_ind, insert_pos, nread;
     int is_hidden, is_backup;
-    char buf[BUF_SIZE];
     char **filenames;
     int filenames_len;
     char **dirnames;
     int dirnames_len;
     char *pgr_name;
-    char *cur_dirname;
     char *full_dirname;
     char *permission;
     char *username;
@@ -51,7 +49,6 @@ int main(int argc, char *argv[])
     char *mtime;
     char *symlink;
     int symlink_len = 4096;
-    struct linux_dirent *dir_entries;
     struct stat cur_dir_stat;
     struct stat *file_stat;
     struct option options[] = 
