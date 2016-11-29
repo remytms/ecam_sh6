@@ -20,6 +20,7 @@
 #define SH6LIB_H
 
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,15 +87,16 @@ int sh6_exec_bash(char *filename)
  * See also:
  *     man 3 strrchr
  *     man 3 getcwd
+ *     http://stackoverflow.com/questions/9449241/where-is-path-max-defined-in-linux
  */
 char* sh6_path_to_custom_programs(char *pgr_name)
 {
-    char *cwd;
+    char cwd[PATH_MAX+1];
     char *dir_to_exec;
     char *last_slash;
     char *complete_path;
 
-    cwd = (char *) get_current_dir_name();
+    getcwd(cwd, PATH_MAX+1);
     dir_to_exec = strdup(pgr_name);
     last_slash = strrchr(dir_to_exec, '/');
     *last_slash = '\0';
@@ -111,7 +113,6 @@ char* sh6_path_to_custom_programs(char *pgr_name)
     strcat(complete_path, dir_to_exec);
     strcat(complete_path, "/cmd");
 
-    free(cwd);
     free(dir_to_exec);
 
     return complete_path;
