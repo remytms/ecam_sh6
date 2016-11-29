@@ -24,6 +24,38 @@
 #include <string.h>
 
 /*
+ * Copy src to dest. src and dest must be valid file descriptors.
+ *
+ * Args:
+ *     int scr: a file descriptor to the source
+ *     int dest: a file descriptor to the destination
+ *
+ * Return value:
+ *     If an error occured it returns -1 and errno is set apropriatly.
+ *     On success it returns EXIT_SUCCESS.
+ *
+ * See also:
+ *     man 2 read
+ *     man 2 write
+ */
+int mycp_copy(int src, int dest)
+{
+    ssize_t nread, nwrite;
+    int buf_len = 1024;
+    char buf[buf_len];
+
+    while ((nread = read(src, buf, buf_len))) {
+       if (nread == -1)
+           return -1;
+       nwrite = write(dest, buf, nread);
+       if (nwrite == -1)
+           return -1;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/*
  * Copy sources to a target destination. If destname is a directory it
  * copies the sources in this directory. If destname is not a directory
  * then the first element of sources it copied to destname. If an error
@@ -390,38 +422,6 @@ int mycp_do_copy(char **sources, int sources_len,
 
     if (dest_is_dir)
         close(destdir);
-
-    return EXIT_SUCCESS;
-}
-
-/*
- * Copy src to dest. src and dest must be valid file descriptors.
- *
- * Args:
- *     int scr: a file descriptor to the source
- *     int dest: a file descriptor to the destination
- *
- * Return value:
- *     If an error occured it returns -1 and errno is set apropriatly.
- *     On success it returns EXIT_SUCCESS.
- *
- * See also:
- *     man 2 read
- *     man 2 write
- */
-int mycp_copy(int src, int dest)
-{
-    ssize_t nread, nwrite;
-    int buf_len = 1024;
-    char buf[buf_len];
-
-    while (nread = read(src, buf, buf_len)) {
-       if (nread == -1)
-           return -1;
-       nwrite = write(dest, buf, nread);
-       if (nwrite == -1)
-           return -1;
-    }
 
     return EXIT_SUCCESS;
 }
