@@ -20,7 +20,7 @@
 
 int main(int argc, char *argv[])
 {
-    int i, err;
+    int i;
     char *path_to_pgr;
     char *pgr_name;
     char *cmd_line = NULL;
@@ -56,5 +56,6 @@ int main(int argc, char *argv[])
     }
     free(cmd_line);
     printf("Bye!\n");
+    return EXIT_SUCCESS;
 }
 
