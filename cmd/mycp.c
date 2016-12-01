@@ -103,12 +103,12 @@ int main(int argc, char *argv[])
                 target_directory_flag = 1;
                 if (optarg == NULL) {
                     perror(pgr_name);
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
                 dest = strdup(optarg);
                 if (dest == NULL) {
                     perror(pgr_name);
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
                 break;
             case 'T':
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, 
                 "%s: missing file operand\n",
                 pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (nbr_args == 1 && !target_directory_flag) {
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
                 "%s: missing destination file after '%s'\n",
                 pgr_name,
                 argv[1]);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (no_target_directory_flag && dest_must_be_a_dir) {
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
                 pgr_name,
                 dest);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     /*
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
         dest = strdup(argv[argc-1]);
         if (dest == NULL) {
             perror(pgr_name);
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
 
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
                 pgr_name,
                 dest);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (no_target_directory_flag && dest_is_dir) {
@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
                 pgr_name,
                 dest);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     /*
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
     if (sources == NULL) {
         perror(pgr_name);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     src_ind = 0;
@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
                 perror(pgr_name);
                 free(dest);
                 mycp_free_sources(sources, src_ind);
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
             }
 
             if (S_ISDIR(src_stat.st_mode)) {
@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
                     perror(pgr_name);
                     free(dest);
                     mycp_free_sources(sources, src_ind);
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
                 src_ind++;
             }
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
         // Error messages have already been printed
         free(dest);
         mycp_free_sources(sources, src_ind);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     tmp = realloc(sources, src_ind * sizeof(char*));
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
         perror(pgr_name);
         free(dest);
         mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     sources_len = src_ind;
     sources = tmp;
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
         perror(pgr_name);
         free(dest);
         mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (mycp_do_copy(sources, sources_len, dest, dest_is_dir, 
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
         free(dest);
         free(err_msg);
         mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     free(err_msg);
