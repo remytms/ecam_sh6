@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include "sh6lib.h"
 
 int main(int argc, char *argv[])
@@ -40,16 +42,21 @@ int main(int argc, char *argv[])
     free(path_to_pgr);
 
     if (argc >= 2) {
-        for(i = 1; i < argc; i++) {
+        for(i = 1; i < argc; i++)
             sh6_exec_bash(argv[i]);
-        }
     } else {
         while (1) {
+            // If hit Ctrl-D then exit
+            if (feof(stdin)) {
+                printf("\n");
+                break;
+            }
+            // Print the prompt and ask user an input
             printf("sh6 > ");
             if (getline(&cmd_line, &cmd_line_len, stdin) > -1) {
                 if (sh6_is_exit(cmd_line))
                     break;
-                if(system(cmd_line) < 0)
+                if(mysh6_system(cmd_line) < 0)
                     printf("Error when executing '%s'\n", cmd_line);
             }
         }
