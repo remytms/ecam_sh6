@@ -30,12 +30,12 @@ int main(int argc, char *argv[])
 
     if ((path_to_pgr = sh6_path_to_custom_programs(argv[0])) == NULL) {
         perror(pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (sh6_modify_path(path_to_pgr)) {
         perror(pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     free(path_to_pgr);
 
