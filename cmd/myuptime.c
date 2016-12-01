@@ -67,41 +67,41 @@ int main(int argc, char *argv[])
         since = myuptime_get_start_date();
         if (since == NULL) {
             perror(pgr_name);
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
         printf("%s\n", since);
         free(since);
-        exit(EXIT_SUCCESS);
+        return EXIT_SUCCESS;
     }
 
     uptime = myuptime_get_uptime(pretty_flag);
     if (uptime == NULL) {
         perror(pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (pretty_flag) {
         printf("%s\n", uptime);
         free(uptime);
-        exit(EXIT_SUCCESS);
+        return EXIT_SUCCESS;
     }
 
     now_time = myuptime_get_time();
     if (now_time == NULL) {
         perror(pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     nbr_user = myuptime_count_connected_users();
     if (nbr_user == -1) {
         perror(pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     load = myuptime_get_load();
     if (load == NULL) {
         perror(pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     printf("%s ", now_time);
