@@ -94,14 +94,14 @@ int main(int argc, char *argv[])
         dirnames_len = 1;
         if ((dirnames = calloc(dirnames_len, sizeof(char*))) == NULL) {
             perror(pgr_name);
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
         dirnames[0] = strdup(".");
     } else {
         dirnames_len = argc - optind;
         if ((dirnames = calloc(dirnames_len, sizeof(char*))) == NULL) {
             perror(pgr_name);
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
         for (cur_arg_index = optind; cur_arg_index < argc; cur_arg_index++) {
             dirnames[cur_arg_index-optind] = strdup(argv[cur_arg_index]);
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
                     pgr_name,
                     dirnames[d_ind],
                     strerror(errno));
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
 
         if (lstat(dirnames[d_ind], &cur_dir_stat)) {
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
                     pgr_name,
                     dirnames[d_ind],
                     strerror(errno));
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
 
         if (!S_ISDIR(cur_dir_stat.st_mode)) {
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
                         pgr_name,
                         dirnames[d_ind],
                         strerror(errno));
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
             }
         }
 
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
                 // Get file stat
                 if ((file_stat = malloc(sizeof(struct stat))) == NULL) {
                     perror(pgr_name);
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
                 if (myls_get_file_stat(dir, filenames[j], &file_stat)) {
                     fprintf(stderr, 
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
                             pgr_name,
                             filenames[j],
                             strerror(errno));
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
 
                 if (recursive_flag && S_ISDIR(file_stat->st_mode) &&
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
                     full_dirname = myls_path_concat(dirnames[d_ind], filenames[j]);
                     if (full_dirname == NULL) {
                         perror(pgr_name);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                     }
                     if (myls_array_insert(
                             insert_pos++,
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
                             &dirnames,
                             &dirnames_len)) {
                         perror(pgr_name);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                     }
                     free(full_dirname);
                 }
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
                                 "%s: cannot access permissions of %s\n", 
                                 pgr_name,
                                 filenames[j]);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                     }
                     printf("%s ", permission);
                     free(permission);
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
                                 "%s: cannot access user owner of %s\n", 
                                 pgr_name,
                                 filenames[j]);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                     }
                     printf("%s\t", username);
                     free(username);
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
                                 "%s: cannot access group owner of %s\n", 
                                 pgr_name,
                                 filenames[j]);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                     }
                     printf("%s\t", groupname);
                     free(groupname);
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
                                 "%s: cannot access modification time of %s\n", 
                                 pgr_name,
                                 filenames[j]);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                     }
                     printf("%s\t", mtime);
                     free(mtime);
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
                         symlink = calloc(symlink_len, sizeof(char));
                         if (symlink == NULL) {
                             perror(pgr_name);
-                            exit(EXIT_FAILURE);
+                            return EXIT_FAILURE;
                         }
 
                         if ((nread = readlinkat(dir, filenames[j], 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
                                     "%s: connot read link '%s'\n",
                                     pgr_name,
                                     filenames[j]);
-                            exit(EXIT_FAILURE);
+                            return EXIT_FAILURE;
                         }
                         // Add terminal null point
                         if (nread < symlink_len)
