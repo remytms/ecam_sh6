@@ -64,35 +64,44 @@ int main(int argc, char *argv[])
         }
     }
 
+    // If no args are specified it will open stdin
+    if (argc == optind) {
+        file = STDIN_FILENO;
+        argc++;
+    }
+
     line_nbr = 0;
     do_print_line_nbr = number_flag;
     for (arg_ind = optind; arg_ind < argc; arg_ind++) {
-        filename = argv[arg_ind];
+        // We don't need to open the args if file equals to stdin
+        if (file != STDIN_FILENO) {
+            filename = argv[arg_ind];
 
-        if (access(filename, R_OK)) {
-            fprintf(stderr, "%s: %s: %s\n",
-                    pgr_name, filename, strerror(errno));
-            return EXIT_FAILURE;
-        }
+            if (access(filename, R_OK)) {
+                fprintf(stderr, "%s: %s: %s\n",
+                        pgr_name, filename, strerror(errno));
+                return EXIT_FAILURE;
+            }
 
-        if (stat(filename, &file_stat)) {
-            fprintf(stderr, "%s: %s: %s\n",
-                    pgr_name, filename, strerror(errno));
-            return EXIT_FAILURE;
-        }
+            if (stat(filename, &file_stat)) {
+                fprintf(stderr, "%s: %s: %s\n",
+                        pgr_name, filename, strerror(errno));
+                return EXIT_FAILURE;
+            }
 
-        if (S_ISDIR(file_stat.st_mode)) {
-            errno = EISDIR;
-            fprintf(stderr, "%s: %s: %s\n",
-                    pgr_name, filename, strerror(errno));
-            return EXIT_FAILURE;
-        }
+            if (S_ISDIR(file_stat.st_mode)) {
+                errno = EISDIR;
+                fprintf(stderr, "%s: %s: %s\n",
+                        pgr_name, filename, strerror(errno));
+                return EXIT_FAILURE;
+            }
 
-        file = open(filename, 0);
-        if (file == -1) {
-            fprintf(stderr, "%s: %s: %s\n",
-                    pgr_name, filename, strerror(errno));
-            return EXIT_FAILURE;
+            file = open(filename, 0);
+            if (file == -1) {
+                fprintf(stderr, "%s: %s: %s\n",
+                        pgr_name, filename, strerror(errno));
+                return EXIT_FAILURE;
+            }
         }
 
         while ((nread = read(file, buf, buf_len))) {
