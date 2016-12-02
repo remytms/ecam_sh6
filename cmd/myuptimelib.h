@@ -108,7 +108,6 @@ char* myuptime_get_uptime(int pretty_flag)
     const long week = 7 * day;
     const long year = 365 * day;
     long minutes, hours, days, weeks, years;
-    long res;
 
     str_tmp = calloc(str_len, sizeof(char));
     if (str_tmp == NULL)
