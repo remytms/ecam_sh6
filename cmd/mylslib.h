@@ -343,21 +343,24 @@ int myls_get_permission(struct stat *filename_stat,
     else strcat(str, "-");
     if (S_IWUSR & filemode) strcat(str, "w");
     else strcat(str, "-");
-    if (S_IXUSR & filemode) strcat(str, "x");
+    if (S_ISUID & filemode) strcat(str, "s");
+    else if (S_IXUSR & filemode) strcat(str, "x");
     else strcat(str, "-");
 
     if (S_IRGRP & filemode) strcat(str, "r");
     else strcat(str, "-");
     if (S_IWGRP & filemode) strcat(str, "w");
     else strcat(str, "-");
-    if (S_IXGRP & filemode) strcat(str, "x");
+    if (S_ISGID & filemode) strcat(str, "s");
+    else if (S_IXGRP & filemode) strcat(str, "x");
     else strcat(str, "-");
 
     if (S_IROTH & filemode) strcat(str, "r");
     else strcat(str, "-");
     if (S_IWOTH & filemode) strcat(str, "w");
     else strcat(str, "-");
-    if (S_IXOTH & filemode) strcat(str, "x");
+    if (S_ISVTX & filemode) strcat(str, "s");
+    else if (S_IXOTH & filemode) strcat(str, "x");
     else strcat(str, "-");
 
     *result_str = str;
@@ -385,13 +388,8 @@ int myls_get_permission(struct stat *filename_stat,
 int myls_get_file_stat(int dir, char *filename, struct stat **stat)
 {
     struct stat *filename_stat = *stat;
-    if (dir < 0) {
-        if (lstat(filename, filename_stat))
-            return EXIT_FAILURE;
-    } else {
-        if (fstatat(dir, filename, filename_stat, AT_SYMLINK_NOFOLLOW))
-            return EXIT_FAILURE;
-    }
+    if (fstatat(dir, filename, filename_stat, AT_SYMLINK_NOFOLLOW))
+        return EXIT_FAILURE;
     *stat = filename_stat;
     return EXIT_SUCCESS;
 }

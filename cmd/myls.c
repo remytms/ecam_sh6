@@ -118,7 +118,13 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        if (lstat(dirnames[d_ind], &cur_dir_stat)) {
+        if (details_flag)
+            // No dereference link
+            res = lstat(dirnames[d_ind], &cur_dir_stat);
+        else
+            // Dereference link
+            res = stat(dirnames[d_ind], &cur_dir_stat);
+        if (res) {
             fprintf(stderr, 
                     "%s: cannot open %s: %s\n", 
                     pgr_name,
@@ -132,7 +138,7 @@ int main(int argc, char *argv[])
             filenames = calloc(filenames_len, sizeof(char*));
             filenames[0] = strdup(dirnames[d_ind]);
             close(dir);
-            dir = -1;
+            dir = AT_FDCWD;
         } else {
             if (myls_list_file_in_dir(dir, &filenames, &filenames_len)) {
                 fprintf(stderr, 
@@ -200,9 +206,10 @@ int main(int argc, char *argv[])
                     // Permission 
                     if (myls_get_permission(file_stat, &permission)) {
                         fprintf(stderr, 
-                                "%s: cannot access permissions of %s\n", 
+                                "%s: cannot access permissions of %s: %s\n", 
                                 pgr_name,
-                                filenames[j]);
+                                filenames[j],
+                                strerror(errno));
                         return EXIT_FAILURE;
                     }
                     printf("%s ", permission);
@@ -214,9 +221,10 @@ int main(int argc, char *argv[])
                     // Username
                     if (myls_get_username(file_stat, &username)) {
                         fprintf(stderr, 
-                                "%s: cannot access user owner of %s\n", 
+                                "%s: cannot access user owner of %s: %s\n", 
                                 pgr_name,
-                                filenames[j]);
+                                filenames[j],
+                                strerror(errno));
                         return EXIT_FAILURE;
                     }
                     printf("%s\t", username);
@@ -225,9 +233,10 @@ int main(int argc, char *argv[])
                     // Groupname 
                     if (myls_get_groupname(file_stat, &groupname)) {
                         fprintf(stderr, 
-                                "%s: cannot access group owner of %s\n", 
+                                "%s: cannot access group owner of %s: %s\n", 
                                 pgr_name,
-                                filenames[j]);
+                                filenames[j],
+                                strerror(errno));
                         return EXIT_FAILURE;
                     }
                     printf("%s\t", groupname);
@@ -239,9 +248,10 @@ int main(int argc, char *argv[])
                     // Modification date
                     if ((res = myls_get_mtime(file_stat, &mtime)) < 0) {
                         fprintf(stderr, 
-                                "%s: cannot access modification time of %s\n", 
+                                "%s: cannot access modification time of %s: %s\n", 
                                 pgr_name,
-                                filenames[j]);
+                                filenames[j],
+                                strerror(errno));
                         return EXIT_FAILURE;
                     }
                     printf("%s\t", mtime);
@@ -258,9 +268,10 @@ int main(int argc, char *argv[])
                         if ((nread = readlinkat(dir, filenames[j], 
                                     symlink, symlink_len)) == -1) {
                             fprintf(stderr,
-                                    "%s: connot read link '%s'\n",
+                                    "%s: cannot read link '%s': %s\n",
                                     pgr_name,
-                                    filenames[j]);
+                                    filenames[j],
+                                    strerror(errno));
                             return EXIT_FAILURE;
                         }
                         // Add terminal null point
@@ -284,8 +295,7 @@ int main(int argc, char *argv[])
             free(filenames[j]);
         }
         free(filenames);
-        if (dir > -1)
-            close(dir);
+        close(dir);
     }
 
     for(d_ind = 0; d_ind < dirnames_len; d_ind++)
