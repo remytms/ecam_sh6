@@ -57,7 +57,8 @@ int main(int argc, char *argv[])
                 if (sh6_is_exit(cmd_line))
                     break;
                 if(mysh6_system(cmd_line) < 0)
-                    printf("Error when executing '%s'\n", cmd_line);
+                    fprintf(stderr, "Error when executing '%s'\n",
+                            cmd_line);
             }
         }
     }
