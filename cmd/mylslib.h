@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 /*
  * Buffer size for getdents
@@ -80,17 +81,18 @@ int myls_str_alphanum_cmp(const void* a, const void* b)
         b_str += sizeof(char);
 
     result = strcasecmp(a_str, b_str);
-    if (result) {
+    if (result) 
         return result;
-    } else {
-        result = -strcmp(a_str, b_str);
-        if (result)
-            return result;
-        if (a_is_hidden)
-            return 1;
-        if (b_is_hidden)
-            return -1;
-    }
+
+    result = -strcmp(a_str, b_str);
+    if (result)
+        return result;
+    if (a_is_hidden)
+        return 1;
+    if (b_is_hidden)
+        return -1;
+
+    return result;
 }
 
 /*

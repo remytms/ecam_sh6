@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     int update_flag = 0;
     int verbose_flag = 0;
 
-    int c, i, j, arg_ind, src_ind;
+    int c, arg_ind, src_ind;
     int nbr_args;
     char *pgr_name;
     int err_msg_len = 2048;
@@ -44,10 +44,10 @@ int main(int argc, char *argv[])
     char **sources;
     int sources_len = 0;
     char *dest = NULL;
-    int dest_exist;
     int dest_is_dir;
     int dest_must_be_a_dir;
-    int source_error = 0;
+    int source_error;
+    int src_exist;
     struct stat dest_stat;
     struct stat src_stat;
     struct option options[] = 
@@ -103,12 +103,12 @@ int main(int argc, char *argv[])
                 target_directory_flag = 1;
                 if (optarg == NULL) {
                     perror(pgr_name);
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
                 dest = strdup(optarg);
                 if (dest == NULL) {
                     perror(pgr_name);
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
                 break;
             case 'T':
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, 
                 "%s: missing file operand\n",
                 pgr_name);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (nbr_args == 1 && !target_directory_flag) {
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
                 "%s: missing destination file after '%s'\n",
                 pgr_name,
                 argv[1]);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (no_target_directory_flag && dest_must_be_a_dir) {
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
                 pgr_name,
                 dest);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     /*
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
         dest = strdup(argv[argc-1]);
         if (dest == NULL) {
             perror(pgr_name);
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
 
@@ -190,16 +190,16 @@ int main(int argc, char *argv[])
                 pgr_name,
                 dest);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
-    if (no_target_directory_flag && dest_exist && dest_is_dir) {
+    if (no_target_directory_flag && dest_is_dir) {
         fprintf(stderr,
                 "%s: cannot overwrite directory '%s' with non-directory\n",
                 pgr_name,
                 dest);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     /*
@@ -215,61 +215,64 @@ int main(int argc, char *argv[])
     if (sources == NULL) {
         perror(pgr_name);
         free(dest);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     src_ind = 0;
+    source_error = 0;
+    src_exist = 0;
     for (arg_ind = optind; arg_ind < optind + sources_len; arg_ind++) {
-        if (access(argv[arg_ind], R_OK)) {
+        src_exist = !access(argv[arg_ind], R_OK);
+        if (!src_exist) {
             fprintf(stderr, 
                     "%s: cannot stat '%s': %s\n", 
                     pgr_name,
                     argv[arg_ind],
                     strerror(errno));
             source_error = 1;
-        }
-
-        if (stat(argv[arg_ind], &src_stat)) {
-            perror(pgr_name);
-            free(dest);
-            mycp_free_sources(sources, src_ind);
-            exit(EXIT_FAILURE);
-        }
-
-        if (S_ISDIR(src_stat.st_mode)) {
-            fprintf(stderr, 
-                    "%s: omitting directory '%s'\n", 
-                    pgr_name,
-                    argv[arg_ind]);
         } else {
-            sources[src_ind] = strdup(argv[arg_ind]);
-            if (sources[src_ind] == NULL) {
+            if (stat(argv[arg_ind], &src_stat)) {
                 perror(pgr_name);
                 free(dest);
                 mycp_free_sources(sources, src_ind);
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
             }
-            src_ind++;
+
+            if (S_ISDIR(src_stat.st_mode)) {
+                fprintf(stderr, 
+                        "%s: omitting directory '%s'\n", 
+                        pgr_name,
+                        argv[arg_ind]);
+            } else {
+                sources[src_ind] = strdup(argv[arg_ind]);
+                if (sources[src_ind] == NULL) {
+                    perror(pgr_name);
+                    free(dest);
+                    mycp_free_sources(sources, src_ind);
+                    return EXIT_FAILURE;
+                }
+                src_ind++;
+            }
         }
     }
     // src_ind is the size of sources
+
+    if (source_error) {
+        // Error messages have already been printed
+        free(dest);
+        mycp_free_sources(sources, src_ind);
+        return EXIT_FAILURE;
+    }
 
     tmp = realloc(sources, src_ind * sizeof(char*));
     if (tmp == NULL) {
         perror(pgr_name);
         free(dest);
         mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     sources_len = src_ind;
     sources = tmp;
-
-    if (source_error) {
-        // Error messages have already been printed
-        free(dest);
-        mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
-    }
 
     /*
      * Copy the source(s) in destination
@@ -279,7 +282,7 @@ int main(int argc, char *argv[])
         perror(pgr_name);
         free(dest);
         mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (mycp_do_copy(sources, sources_len, dest, dest_is_dir, 
@@ -301,7 +304,7 @@ int main(int argc, char *argv[])
         free(dest);
         free(err_msg);
         mycp_free_sources(sources, sources_len);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     free(err_msg);
