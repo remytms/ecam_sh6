@@ -2,15 +2,15 @@ ecam_sh6
 ========
 School project: Micro Linux Shell
 
-Author : Rémy Taymans et Louis Randriamora
+Authors : Rémy Taymans and Louis Randriamora
 
 Compile
 -------
 ### With Waf
 Run:
 
-    $ python waf-1.9.6 configure
-    $ python waf-1.9.6 build
+    $ python waf configure
+    $ python waf build
 
 ### With custom script
 Run:
@@ -27,3 +27,6 @@ Run in batch mode:
 
     $ ./sh6 my_batch_file
 
+Notes
+----
+Waf version: 1.9.6
