@@ -109,7 +109,7 @@ int sh6_exec_bash(char *filename)
         if (strlen(line) > 1) {
             printf("sh6 > %s", line);
             if (mysh6_system(line) < 0) {
-                printf("Error when executing '%s'\n", line);
+                fprintf(stderr, "Error when executing '%s'\n", line);
                 return EXIT_FAILURE;
             }
         }
@@ -201,22 +201,5 @@ int sh6_modify_path(char *path)
 
     return EXIT_SUCCESS;
 }
-
-/*
- * Read a line.
- */
-/*
-char* getline(void)
-{
-    size_t len_max = 100;
-    size_t len;
-    char *line = malloc(len * sizeof(char));
-    int c;
-
-    for (len = 0; len < len_max; len++) {
-        c = fgetc(stdin);
-    }
-}
-*/
 
 #endif
