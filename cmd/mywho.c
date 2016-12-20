@@ -17,8 +17,12 @@
  */
 
 #include <getopt.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <sys/sysinfo.h>
+#include <time.h>
 #include <unistd.h>
+#include <utmpx.h>
 
 int main(int argc, char *argv[])
 {
@@ -26,7 +30,12 @@ int main(int argc, char *argv[])
     int count_flag = 0;
 
     int c;
+    int nbr_user;
     char *pgr_name;
+    int date_len = 100;
+    char date[date_len];
+    struct utmpx *user_info;
+    struct tm user_lt;
     struct option options[] = 
     {
         {"heading", no_argument, NULL, 'H'},
@@ -51,9 +60,40 @@ int main(int argc, char *argv[])
         }
     }
 
-    /*
-     * Complete code here.
-     */
+    setutxent();
+
+    nbr_user = 0;
+    while ((user_info = getutxent()) != NULL) {
+        if (user_info->ut_type == 7) {
+            if (count_flag) {
+                printf("%s ", user_info->ut_user);
+            } else {
+                if (heading_flag && nbr_user == 0)
+                    printf("NAME\tLINE\tTIME\t\t\tCOMMENT\n");
+
+                printf("%s\t", user_info->ut_user);
+                printf("%s\t", user_info->ut_line);
+
+                if (localtime_r(&user_info->ut_tv.tv_sec, &user_lt) == NULL) {
+                    perror(pgr_name);
+                    return EXIT_FAILURE;
+                }
+
+                if (strftime(date, date_len, "%F %R", &user_lt) < 0) {
+                    perror(pgr_name);
+                    return EXIT_FAILURE;
+                }
+
+                printf("%s\t", date);
+                printf("(%s)\t", user_info->ut_host);
+                printf("\n");
+            }
+            nbr_user++;
+        }
+    }
+
+    if (count_flag)
+        printf("\n# users=%d\n", nbr_user);
 
     return EXIT_SUCCESS;
 }

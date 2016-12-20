@@ -2,6 +2,8 @@ ecam_sh6
 ========
 School project: Micro Linux Shell
 
+Author : Rémy Taymans et Louis Randriamora
+
 Compile
 -------
 ### With Waf

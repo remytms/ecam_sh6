@@ -16,13 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 int main(int argc, char *argv[])
 {
-    /*
-     * Complete code here.
-     */
+    char *pgr_name;
+    int pathname_len = 4096;
+    char pathname[pathname_len];
+
+    pgr_name = argv[0];
+
+    if (getcwd(pathname, pathname_len) == NULL) {
+        perror(pgr_name);
+        return EXIT_FAILURE;
+    }
+
+    printf("%s\n", pathname);
+
+    return EXIT_SUCCESS;
 }
 
