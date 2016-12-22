@@ -15,18 +15,31 @@ def configure(cnf):
     cnf.load('compiler_c')
 
 def build(bld):
-    bld.program(source='sh6.c', 
+    print("Compile sh6...")
+    bld.program(source='sh6.c sh6lib.c', 
                 target='sh6', 
                 cflags=flags)
     if isfile('build/sh6'):
+        print("Move sh6.")
         bld.exec_command('cp build/sh6 sh6')
-    sources = [f for f in listdir("cmd") if f.endswith('.c')]
+
+    sources = [f for f in listdir("cmd") \
+               if f.endswith('.c') and not f.endswith('lib.c')]
     for f in sources:
         f_no_ext = splitext(f)[0]
-        bld.program(source="cmd/"+f,
-                    target="cmd/"+f_no_ext,
-                    cflags=flags)
-        if isfile('build/'+f_no_ext):
-            bld.exec_command('cp build/cmd/'+f_no_ext+' cmd/'+f_no_ext)
+        f_lib = f_no_ext + "lib.c"
 
+        print("Compile "+f_no_ext+"...")
+        if isfile("cmd/"+f_lib):
+            bld.program(source="cmd/"+f+" cmd/"+f_lib,
+                        target="cmd/"+f_no_ext,
+                        cflags=flags)
+        else:
+            bld.program(source="cmd/"+f,
+                        target="cmd/"+f_no_ext,
+                        cflags=flags)
+
+        if isfile('build/cmd/'+f_no_ext):
+            print("Move "+f_no_ext+".")
+            bld.exec_command('cp build/cmd/'+f_no_ext+' cmd/'+f_no_ext)
 
