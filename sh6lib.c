@@ -26,32 +26,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-/*
- * Return true if the string given in args means 'exit'
- */
 int sh6_is_exit(char str[])
 {
     return (strcmp(str, "exit") == 0 || strcmp(str, "exit\n") == 0 ||
             strcmp(str, "quit") == 0 || strcmp(str, "quit\n") == 0);
 }
 
-/*
- * Execute a shell command.
- *
- * Args:
- *     char *cmd: a command
- * 
- * Return value:
- *    If a child process could not be created, or its status could not
- *    be retrieved, the return value is -1.
- *    If  all  system  calls succeed, then the return value is the
- *    termination status of the child shell used to execute command.
- *    (The termination status of a shell is the termination status of
- *    the last command it executes.)
- *
- * See also:
- *     http://man7.org/tlpi/code/online/dist/procexec/system.c.html
- */
 int mysh6_system(const char *cmd)
 {
     int pid, status;
@@ -80,18 +60,6 @@ int mysh6_system(const char *cmd)
     return status;
 }
 
-/* 
- * Execute bash file. It read the file (filename) and execute each
- * line of this file. It print an error if a line of the file cannot be
- * executed.
- *
- * Args:
- *     char *filename: the name of the bash file that will be read
- *
- * Return value:
- *     EXIT_SUCCESS if no errors occured
- *     EXIT_FAILURE if an error occured
- */
 int sh6_exec_bash(char *filename)
 {
     FILE *file;
@@ -118,21 +86,6 @@ int sh6_exec_bash(char *filename)
     return EXIT_SUCCESS;
 }
 
-/*
- * Return the absolute path to directory containing the custom programs.
- *
- * Args:
- *     char *pgr_name: the value of argv[0]
- *
- * Return value:
- *     A string containing the required path. If an error occured NULL
- *     is return.
- *
- * See also:
- *     man 3 strrchr
- *     man 3 getcwd
- *     http://stackoverflow.com/questions/9449241/where-is-path-max-defined-in-linux
- */
 char* sh6_path_to_custom_programs(char *pgr_name)
 {
     char cwd[PATH_MAX+1];
@@ -162,20 +115,6 @@ char* sh6_path_to_custom_programs(char *pgr_name)
     return complete_path;
 }
 
-/*
- * Add path to the PATH environemen= list.
- *
- * Args:
- *     char *path: a path where executable can be find
- *
- * Return value:
- *     EXIT_FAILURE if an error occured
- *     EXIT_SUCCESS if no errors occured
- *
- * See also:
- *     man 3 getenv
- *     man 3 setenv
- */
 int sh6_modify_path(char *path)
 {
     const char *path_old;
