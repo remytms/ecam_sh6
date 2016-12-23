@@ -11,6 +11,9 @@ Run:
 
     $ python waf configure
     $ python waf build
+    $ python waf build
+
+The build must be run two times.
 
 ### With custom script
 Run:
