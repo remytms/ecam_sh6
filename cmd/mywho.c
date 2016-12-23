@@ -74,7 +74,8 @@ int main(int argc, char *argv[])
                 printf("%s\t", user_info->ut_user);
                 printf("%s\t", user_info->ut_line);
 
-                if (localtime_r(&user_info->ut_tv.tv_sec, &user_lt) == NULL) {
+                if (localtime_r((const time_t*) &user_info->ut_tv.tv_sec, 
+                                &user_lt) == NULL) {
                     perror(pgr_name);
                     return EXIT_FAILURE;
                 }
